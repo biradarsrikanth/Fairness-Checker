@@ -7,18 +7,18 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "alret_events")
+@Table(name = "alret_event")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AlertEvents {
+public class AlertEvent {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(name="EngineerId",nullable = false)
     private String EngineerId;
     private String EngineerName;
-    private LocalDateTime triggerdAt;
-    private LocalDateTime resolvedAt;
+    private LocalDateTime TriggeredAt;
+    private LocalDateTime ResolvedAt;
     private String Severity;
 }
