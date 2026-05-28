@@ -1,18 +1,20 @@
-package com.example.fairness_tracker;
+package com.example.fairnesstracker.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+
 @Entity
+@Table(name = "engineer_data")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Engineer {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
     private String Email;

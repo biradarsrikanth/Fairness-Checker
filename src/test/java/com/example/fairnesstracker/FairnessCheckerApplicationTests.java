@@ -1,4 +1,4 @@
-package com.example.fairness_tracker;
+package com.example.fairnesstracker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

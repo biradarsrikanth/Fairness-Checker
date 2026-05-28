@@ -1,5 +1,6 @@
-package com.example.fairness_tracker;
+package com.example.fairnesstracker.repository;
 
+import com.example.fairnesstracker.entity.AlertEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

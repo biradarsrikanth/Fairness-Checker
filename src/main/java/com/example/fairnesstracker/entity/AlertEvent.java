@@ -1,4 +1,4 @@
-package com.example.fairness_tracker;
+package com.example.fairnesstracker.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "alret_event")
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
