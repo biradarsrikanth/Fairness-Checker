@@ -47,7 +47,7 @@ public class AlertEventController {
         return ResponseEntity.ok("Event SuccessFully Deleted!");
     }
 
-    @GetMapping
+    @GetMapping("/filetr/alerts")
     public List<AlertEvent> getFilteredAlerts(
 
             @RequestParam(required = false)

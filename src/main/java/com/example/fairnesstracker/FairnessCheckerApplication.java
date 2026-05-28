@@ -14,9 +14,4 @@ public class FairnessCheckerApplication {
         SpringApplication.run(FairnessCheckerApplication.class, args);
     }
 
-    @GetMapping
-    public String HealthController(){
-        return "Let's Start!";
-    }
-
 }
