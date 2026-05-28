@@ -1,7 +1,6 @@
 package com.example.fairnesstracker.controller;
 
 import com.example.fairnesstracker.entity.Engineer;
-import com.example.fairnesstracker.service.AlertService;
 import com.example.fairnesstracker.service.EngineerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
