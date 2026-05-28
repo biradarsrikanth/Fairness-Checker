@@ -17,7 +17,7 @@ public class EngineerController {
     private final EngineerService engineerService;
 
     @Autowired
-    public EngineerController(EngineerService engineerService, AlertService alertService) {
+    public EngineerController(EngineerService engineerService) {
         this.engineerService = engineerService;
     }
 
