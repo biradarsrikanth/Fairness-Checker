@@ -2,6 +2,7 @@ package com.example.fairnesstracker.controller;
 
 import com.example.fairnesstracker.entity.Engineer;
 import com.example.fairnesstracker.service.EngineerService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,7 +39,7 @@ public class EngineerController {
     }
 
     @PostMapping("/engineers/{id}")
-    public ResponseEntity<String> updateEngineer(@PathVariable Long id,@RequestBody Engineer engineer){
+    public ResponseEntity<String> updateEngineer(@PathVariable Long id,@Valid @RequestBody Engineer engineer){
         Engineer updateDetails=engineerService.updateEngineer(id,engineer);
         return ResponseEntity.ok("Engineer Details Updated!");
     }
