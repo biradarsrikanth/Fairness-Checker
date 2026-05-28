@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import com.example.fairnesstracker.entity.AlertEvent;
 import com.example.fairnesstracker.repository.AlertRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,20 @@ public class AlertService {
 
     public void deleteEvent(Long id){
         alertRepository.deleteById(id);
+    }
+
+    public List<AlertEvent> filterAlerts(
+            String engineerId,
+            String severity,
+            LocalDateTime from,
+            LocalDateTime to
+    ){
+        return alertRepository.filterAlerts(
+                engineerId,
+                severity,
+                from,
+                to
+        );
     }
 
 }
