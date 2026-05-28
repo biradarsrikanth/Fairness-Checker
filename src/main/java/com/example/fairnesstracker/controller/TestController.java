@@ -1,5 +1,7 @@
-package com.example.fairness_tracker;
+package com.example.fairnesstracker.controller;
 
+import com.example.fairnesstracker.entity.AlertEvent;
+import com.example.fairnesstracker.repository.AlertRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
