@@ -14,10 +14,10 @@ public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
 
     @Query("""
         SELECT a FROM AlertEvent a
-        WHERE (:engineerId IS NULL OR a.EngineerId = :engineerId)
-        AND (:severity IS NULL OR a.Severity = :severity)
-        AND (:from IS NULL OR a.TriggeredAt >= :from)
-        AND (:to IS NULL OR a.TriggeredAt <= :to)
+        WHERE (:engineerId IS NULL OR a.engineerId = :engineerId)
+        AND (:severity IS NULL OR a.severity = :severity)
+        AND (:from IS NULL OR a.triggeredAt >= :from)
+        AND (:to IS NULL OR a.triggeredAt <= :to)
     """)
     List<AlertEvent> filterAlerts(
             @Param("engineerId") String engineerId,
