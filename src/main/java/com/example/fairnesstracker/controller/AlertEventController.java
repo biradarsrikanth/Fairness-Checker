@@ -36,9 +36,8 @@ public class AlertEventController {
     }
 
     @GetMapping("/alerts/{id}")
-    public ResponseEntity<AlertEvent> getById(@PathVariable Long id){
-        Optional<AlertEvent> alertEvent=alertService.getById(id);
-        return alertEvent.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public AlertEvent getById(@PathVariable Long id){
+        return alertService.getById(id);
     }
 
     @DeleteMapping("alerts/{id}")

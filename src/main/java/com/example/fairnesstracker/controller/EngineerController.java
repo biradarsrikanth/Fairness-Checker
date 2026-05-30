@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+
 
 @RestController
 @RequestMapping
@@ -33,9 +33,8 @@ public class EngineerController {
     }
 
     @GetMapping("/engineers/{id}")
-    public ResponseEntity<Engineer> getById(@PathVariable Long id){
-        Optional<Engineer> engineer=engineerService.getById(id);
-        return engineer.map(ResponseEntity::ok).orElseGet(()-> ResponseEntity.notFound().build());
+    public Engineer getById(@PathVariable Long id){
+        return engineerService.getById(id);
     }
 
     @PostMapping("/engineers/{id}")
@@ -45,8 +44,8 @@ public class EngineerController {
     }
 
     @DeleteMapping("/engineers/{id}")
-    public ResponseEntity<String> deleteEngineer(@PathVariable Long id){
+    public ResponseEntity<String> deleteEngineer(@PathVariable Long id) {
         engineerService.deleteEngineer(id);
-        return ResponseEntity.ok("Engineer Data Deleted Succesfully!");
+        return ResponseEntity.ok("Engineer deleted successfully!");
     }
 }

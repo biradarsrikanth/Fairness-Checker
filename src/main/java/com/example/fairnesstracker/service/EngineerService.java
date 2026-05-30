@@ -2,6 +2,7 @@ package com.example.fairnesstracker.service;
 
 
 import com.example.fairnesstracker.entity.Engineer;
+import com.example.fairnesstracker.exceptions.ResourceNotFoundException;
 import com.example.fairnesstracker.repository.EngineerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,25 +29,40 @@ public class EngineerService {
         return engineerRepository.findAll();
     };
 
-    //get ine Engineer by Id
-    public Optional<Engineer> getById(Long id){
-        return engineerRepository.findById(id);
+    //get ine Engineer by id
+    public Engineer getById(Long id){
+
+        return engineerRepository.findById(id)
+                .orElseThrow(()->
+                        new RuntimeException(
+                                "Enineer not Found with id:"+id
+                        )
+                );
     }
 
     //update Engineer
     public Engineer updateEngineer(Long id, Engineer updatedEngineer){
-        Optional<Engineer> exisitingEngineer=engineerRepository.findById(id);
-
-        Engineer engineer=exisitingEngineer.get();
-        engineer.setName(updatedEngineer.getName());
-        engineer.setEmail(updatedEngineer.getEmail());
-        engineer.setTeam(updatedEngineer.getTeam());
-        return engineerRepository.save(engineer);
+        Engineer existingEngineer=engineerRepository.findById(id)
+                .orElseThrow(()->
+                        new RuntimeException(
+                                "Enineer not Found with id:"+id
+                        )
+                );
+        existingEngineer.setName(updatedEngineer.getName());
+        existingEngineer.setEmail(updatedEngineer.getEmail());
+        existingEngineer.setTeam(updatedEngineer.getTeam());
+        return engineerRepository.save(existingEngineer);
     }
 
     //delete Engineer
     public void deleteEngineer(Long id){
-        engineerRepository.deleteById(id);
-    }
 
+        Engineer engineer = engineerRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Engineer not found with id: " + id));
+
+        engineerRepository.delete(engineer);
+    }
 }
+

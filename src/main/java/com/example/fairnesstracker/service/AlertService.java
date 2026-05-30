@@ -8,7 +8,6 @@ import com.example.fairnesstracker.repository.AlertRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AlertService {
@@ -27,12 +26,24 @@ public class AlertService {
         return alertRepository.findAll();
     }
 
-    public Optional<AlertEvent> getById(Long id) {
-        return alertRepository.findById(id);
+    public AlertEvent getById(Long id) {
+
+        return alertRepository.findById(id)
+                .orElseThrow(()->
+                        new RuntimeException(
+                                "Event Not Found with id:"+id)
+                );
     }
 
     public void deleteEvent(Long id){
-        alertRepository.deleteById(id);
+
+        AlertEvent alertEvent = alertRepository.findById(id)
+                .orElseThrow(()->
+                        new RuntimeException(
+                                "Event Not Found with id:"+id)
+                );
+        alertRepository.delete(alertEvent);
+
     }
 
     public List<AlertEvent> filterAlerts(
