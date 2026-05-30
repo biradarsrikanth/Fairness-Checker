@@ -14,7 +14,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping
+@RequestMapping("/api/alerts")
 public class AlertEventController {
 
     private final AlertService alertService;
@@ -24,29 +24,29 @@ public class AlertEventController {
         this.alertService = alertService;
     }
 
-    @PostMapping("/alert")
+    @PostMapping
     public ResponseEntity<AlertEvent> saveAlert(@Valid @RequestBody AlertEvent alertEvent){
         AlertEvent newAlert=alertService.saveAlert(alertEvent);
         return ResponseEntity.ok(alertEvent);
     }
 
-    @GetMapping("/alerts")
+    @GetMapping
     public List<AlertEvent> getAllEvents(){
         return alertService.getAllEvents();
     }
 
-    @GetMapping("/alerts/{id}")
+    @GetMapping("/{id}")
     public AlertEvent getById(@PathVariable Long id){
         return alertService.getById(id);
     }
 
-    @DeleteMapping("alerts/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteEvent(@PathVariable Long id){
         alertService.deleteEvent(id);
         return ResponseEntity.ok("Event SuccessFully Deleted!");
     }
 
-    @GetMapping("/filetr/alerts")
+    @GetMapping("/filter")
     public List<AlertEvent> getFilteredAlerts(
 
             @RequestParam(required = false)

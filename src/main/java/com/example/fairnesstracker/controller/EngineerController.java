@@ -11,7 +11,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping
+@RequestMapping("/api/engineers")
 public class EngineerController {
 
     private final EngineerService engineerService;
@@ -21,29 +21,29 @@ public class EngineerController {
         this.engineerService = engineerService;
     }
 
-    @PostMapping("/engineer")
-    public ResponseEntity<Engineer> saveEngineer(@RequestBody Engineer engineer){
+    @PostMapping
+    public ResponseEntity<Engineer> saveEngineer(@Valid @RequestBody Engineer engineer){
         Engineer newEngineer=engineerService.saveEngineer(engineer);
         return ResponseEntity.ok(engineer);
     }
 
-    @GetMapping("/engineers")
+    @GetMapping
     public List<Engineer> getAllEngineers(){
         return engineerService.getAllEngineers();
     }
 
-    @GetMapping("/engineers/{id}")
+    @GetMapping("/{id}")
     public Engineer getById(@PathVariable Long id){
         return engineerService.getById(id);
     }
 
-    @PostMapping("/engineers/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<String> updateEngineer(@PathVariable Long id,@Valid @RequestBody Engineer engineer){
         Engineer updateDetails=engineerService.updateEngineer(id,engineer);
         return ResponseEntity.ok("Engineer Details Updated!");
     }
 
-    @DeleteMapping("/engineers/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteEngineer(@PathVariable Long id) {
         engineerService.deleteEngineer(id);
         return ResponseEntity.ok("Engineer deleted successfully!");
