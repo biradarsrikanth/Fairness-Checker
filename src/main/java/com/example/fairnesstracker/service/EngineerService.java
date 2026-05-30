@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class EngineerService {
@@ -27,7 +26,7 @@ public class EngineerService {
     //List all Engineers
     public List<Engineer> getAllEngineers(){
         return engineerRepository.findAll();
-    };
+    }
 
     //get ine Engineer by id
     public Engineer getById(Long id){
