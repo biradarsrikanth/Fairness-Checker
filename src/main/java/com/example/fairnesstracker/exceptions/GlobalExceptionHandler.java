@@ -1,5 +1,8 @@
 package com.example.fairnesstracker.exceptions;
 
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -11,18 +14,23 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ApiError handleNotFound(ResourceNotFoundException ex) {
+    public ResponseEntity<ApiError> handleNotFound(
+            ResourceNotFoundException ex) {
 
-        return new ApiError(
+        ApiError error = new ApiError(
                 404,
                 "NOT_FOUND",
                 ex.getMessage(),
                 LocalDateTime.now()
         );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ApiError handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiError> handleValidation(
+            MethodArgumentNotValidException ex) {
 
         String message = ex.getBindingResult()
                 .getFieldErrors()
@@ -31,22 +39,29 @@ public class GlobalExceptionHandler {
                         error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.joining(", "));
 
-        return new ApiError(
+        ApiError error = new ApiError(
                 400,
                 "VALIDATION_FAILED",
                 message,
                 LocalDateTime.now()
         );
+
+        return ResponseEntity.badRequest()
+                .body(error);
     }
 
     @ExceptionHandler(Exception.class)
-    public ApiError handleGeneric(Exception ex) {
+    public ResponseEntity<ApiError> handleGeneric(
+            Exception ex) {
 
-        return new ApiError(
+        ApiError error = new ApiError(
                 500,
                 "INTERNAL_SERVER_ERROR",
-                ex.getMessage(),
+                "Something went wrong",
                 LocalDateTime.now()
         );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error);
     }
 }
