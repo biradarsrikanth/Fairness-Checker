@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.controller;
 
+//-----------------------------------------------------------------
 import com.example.fairnesstracker.entity.AlertEvent;
 import com.example.fairnesstracker.repository.AlertRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,3 +24,5 @@ public class TestController {
         return alertRepository.save(event);
     }
 }
+//------------------------------------------------------------------
+// Specified Tests are already done so ignore this
