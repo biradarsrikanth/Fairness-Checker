@@ -11,6 +11,8 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+
+//Table Containing Engineer Data
 public class Engineer {
 
     @Id

@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Validated
+
+//The table that records the alerts that are triggered
 public class AlertEvent {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
