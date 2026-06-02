@@ -3,4 +3,4 @@ GET https://examples.http-client.intellij.net/get
     ?generated-in=IntelliJ IDEA
 
 ###
-POST http://localhost:8080/api/test
+GET http://localhost:8080/api/alerts/engineer/1
