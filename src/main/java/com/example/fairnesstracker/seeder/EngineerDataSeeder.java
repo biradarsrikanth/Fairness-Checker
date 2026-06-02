@@ -19,60 +19,24 @@ public class EngineerDataSeeder {
             return;
         }
 
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Srikanth",
-                        "srikanth@gmail.com",
-                        "Platform"
-                )
-        );
-
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Shanmukha",
-                        "shanmukha@gmail.com",
-                        "SRE"
-                )
-        );
-
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Pavan",
-                        "pavan@gmail.com",
-                        "Backend"
-                )
-        );
-
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Rahul",
-                        "rahul@gmail.com",
-                        "Infrastructure"
-                )
-        );
-
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Prithvi",
-                        "prithvi@gmail.com",
-                        "Platform"
-                )
-        );
-
-        engineerRepository.save(
-                new Engineer(
-                        null,
-                        "Saikiran",
-                        "saikiran@gmail.com",
-                        "SRE"
-                )
-        );
+        saveEngineer("Srikanth", "srikanth@gmail.com", "Platform");
+        saveEngineer("Shanmukha", "shanmukha@gmail.com", "SRE");
+        saveEngineer("Pavan", "pavan@gmail.com", "Backend");
+        saveEngineer("Rahul", "rahul@gmail.com", "Infrastructure");
+        saveEngineer("Prithvi", "prithvi@gmail.com", "Platform");
+        saveEngineer("Saikiran", "saikiran@gmail.com", "SRE");
 
         System.out.println("Seeded Engineers");
+    }
+
+    private void saveEngineer(String name, String email, String team) {
+
+        Engineer engineer = new Engineer();
+
+        engineer.setName(name);
+        engineer.setEmail(email);
+        engineer.setTeam(team);
+
+        engineerRepository.save(engineer);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.controller;
 
 import com.example.fairnesstracker.service.AlertService;
+import com.example.fairnesstracker.service.EngineerService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -19,6 +20,9 @@ class AlertEventControllerTest {
 
     @MockitoBean
     private AlertService alertService;
+
+    @MockitoBean
+    private EngineerService engineerService;
 
     @Test
     void postInvalidAlert_returns400() throws Exception {
