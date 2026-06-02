@@ -1,12 +1,15 @@
 package com.example.fairnesstracker.seeder;
 
 import com.example.fairnesstracker.entity.AlertEvent;
+import com.example.fairnesstracker.entity.Engineer;
 import com.example.fairnesstracker.repository.AlertRepository;
+import com.example.fairnesstracker.repository.EngineerRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Component
@@ -15,6 +18,9 @@ public class AlertDataSeeder {
     @Autowired
     private AlertRepository repo;
 
+    @Autowired
+    private EngineerRepository engineerRepository;
+
     @PostConstruct
     public void seed() {
 
@@ -22,23 +28,12 @@ public class AlertDataSeeder {
             return;
         }
 
-        String[] engineerIds = {
-                "ENG001",
-                "ENG002",
-                "ENG003",
-                "ENG004",
-                "ENG005",
-                "ENG006"
-        };
+        List<Engineer> engineers = engineerRepository.findAll();
 
-        String[] engineerNames = {
-                "Srikanth",
-                "Shanmukha",
-                "Pavan",
-                "Rahul",
-                "Prithvi",
-                "Saikiran"
-        };
+        if (engineers.isEmpty()) {
+            System.out.println("No engineers found. Skipping alert seeding.");
+            return;
+        }
 
         // Srikanth gets 40%, Saikiran gets 5%
         int[] weights = {40, 20, 15, 10, 10, 5};
@@ -53,10 +48,11 @@ public class AlertDataSeeder {
 
             int engineerIndex = weightedRandom(weights, rand);
 
+            Engineer engineer = engineers.get(engineerIndex);
+
             AlertEvent alert = new AlertEvent();
 
-            alert.setEngineerId(engineerIds[engineerIndex]);
-            alert.setEngineerName(engineerNames[engineerIndex]);
+            alert.setEngineer(engineer);
 
             alert.setSeverity(
                     severities[rand.nextInt(severities.length)]

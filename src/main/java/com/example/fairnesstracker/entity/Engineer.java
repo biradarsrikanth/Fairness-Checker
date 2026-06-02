@@ -5,11 +5,13 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 @Entity
 @Table(name = "engineer_data")
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 
 //Table Containing Engineer Data
@@ -29,4 +31,7 @@ public class Engineer {
 
     @NotBlank(message = "Team is required")
     private String team;
+
+    @OneToMany(mappedBy = "engineer")
+    private List<AlertEvent> alerts = new ArrayList<>();
 }

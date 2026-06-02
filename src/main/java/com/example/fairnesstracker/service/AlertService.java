@@ -1,5 +1,10 @@
 package com.example.fairnesstracker.service;
 
+import com.example.fairnesstracker.dto.AlertRequest;
+import com.example.fairnesstracker.dto.AlertResponse;
+import com.example.fairnesstracker.entity.Engineer;
+import com.example.fairnesstracker.exceptions.ResourceNotFoundException;
+import com.example.fairnesstracker.repository.EngineerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,14 +17,28 @@ import java.util.List;
 @Service
 public class AlertService {
     private final AlertRepository alertRepository;
+    private final EngineerRepository engineerRepository;
 
     @Autowired
-    public AlertService(AlertRepository alertRepository) {
+    public AlertService(AlertRepository alertRepository, EngineerService engineerService, EngineerRepository engineerRepository) {
         this.alertRepository = alertRepository;
+        this.engineerRepository = engineerRepository;
     }
 
-    public AlertEvent saveAlert(AlertEvent alertEvent){
-            return alertRepository.save(alertEvent);
+    public AlertEvent saveAlert(AlertRequest request) {
+
+        Engineer engineer = engineerRepository
+                .findById(request.engineerId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Engineer not found"));
+
+        AlertEvent alert = new AlertEvent();
+
+        alert.setEngineer(engineer);
+        alert.setSeverity(request.severity());
+        alert.setTriggeredAt(LocalDateTime.now());
+
+        return alertRepository.save(alert);
     }
 
     public List<AlertEvent> getAllEvents(){
@@ -33,6 +52,25 @@ public class AlertService {
                         new RuntimeException(
                                 "Event Not Found with id:"+id)
                 );
+    }
+
+    public List<AlertResponse> getAlertsByEngineer(Long engineerId) {
+
+        Engineer engineer = engineerRepository.findById(engineerId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Engineer not found"));
+
+        return alertRepository.findByEngineer_Id(engineerId)
+                .stream()
+                .map(alert -> new AlertResponse(
+                        alert.getId(),
+                        alert.getEngineer().getName(),
+                        alert.getSeverity(),
+                        alert.getTriggeredAt(),
+                        alert.getResolvedAt()
+                ))
+                .toList();
     }
 
     public void deleteEvent(Long id){

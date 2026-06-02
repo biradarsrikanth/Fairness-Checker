@@ -12,9 +12,11 @@ import java.util.List;
 @Repository
 public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
 
+    List<AlertEvent> findByEngineer_Id(Long engineerId);
+
     @Query("""
         SELECT a FROM AlertEvent a
-        WHERE (:engineerId IS NULL OR a.engineerId = :engineerId)
+        WHERE (:engineerId IS NULL OR a.engineer.id = :engineerId)
         AND (:severity IS NULL OR a.severity = :severity)
         AND (:from IS NULL OR a.triggeredAt >= :from)
         AND (:to IS NULL OR a.triggeredAt <= :to)

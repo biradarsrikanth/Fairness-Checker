@@ -1,10 +1,15 @@
 package com.example.fairnesstracker.controller;
 
+import com.example.fairnesstracker.dto.AlertRequest;
+import com.example.fairnesstracker.dto.AlertResponse;
 import com.example.fairnesstracker.entity.AlertEvent;
+import com.example.fairnesstracker.exceptions.ResourceNotFoundException;
 import com.example.fairnesstracker.service.AlertService;
+import com.example.fairnesstracker.service.EngineerService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,16 +23,18 @@ import java.util.List;
 public class AlertEventController {
 
     private final AlertService alertService;
+    private final EngineerService engineerService;
 
     @Autowired
-    public AlertEventController(AlertService alertService) {
+    public AlertEventController(AlertService alertService, EngineerService engineerService) {
         this.alertService = alertService;
+        this.engineerService = engineerService;
     }
 
     @PostMapping
-    public ResponseEntity<AlertEvent> saveAlert(@Valid @RequestBody AlertEvent alertEvent){
-        AlertEvent newAlert=alertService.saveAlert(alertEvent);
-        return ResponseEntity.ok(alertEvent);
+    public ResponseEntity<AlertEvent> saveAlert(@Valid @RequestBody AlertRequest request){
+        AlertEvent newAlert=alertService.saveAlert(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newAlert);
     }
 
     @GetMapping
@@ -35,8 +42,18 @@ public class AlertEventController {
         return alertService.getAllEvents();
     }
 
+
+    @GetMapping("/engineer/{engineerId}")
+    public ResponseEntity<List<AlertResponse>> getAlertsByEngineer(
+            @PathVariable Long engineerId) {
+
+        return ResponseEntity.ok(
+                alertService.getAlertsByEngineer(engineerId)
+        );
+    }
+
     @GetMapping("/{id}")
-    public AlertEvent getById(@PathVariable Long id){
+    public AlertEvent getById(@PathVariable Long id) {
         return alertService.getById(id);
     }
 

@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Table(name = "alret_event")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 @Validated
 
 //The table that records the alerts that are triggered
@@ -23,16 +22,14 @@ public class AlertEvent {
     @Setter(AccessLevel.NONE)
     private Long id;
 
-    @NotBlank(message = "Id cannot be Empty!")
-    private String engineerId;
-
-    @NotBlank(message = "Name cannot be Empty!")
-    private String engineerName;
-
     @NotNull(message = "Requires trigger Time")
     private LocalDateTime triggeredAt;
     private LocalDateTime resolvedAt;
 
     @Pattern(regexp = "P1|P2|P3", message = "Severity must be P1, P2, or P3")
     private String severity;
+
+    @ManyToOne
+    @JoinColumn(name = "engineer_id")
+    private Engineer engineer;
 }
