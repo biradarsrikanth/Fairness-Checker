@@ -1,7 +1,6 @@
 package com.example.fairnesstracker.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
@@ -21,6 +20,9 @@ public class AlertEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Setter(AccessLevel.NONE)
     private Long id;
+
+    private String pagerDutyIncidentId;
+    private String status;
 
     @NotNull(message = "Requires trigger Time")
     private LocalDateTime triggeredAt;
