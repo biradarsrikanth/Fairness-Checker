@@ -1,4 +1,4 @@
-package com.example.fairnesstracker.dto;
+package com.example.fairnesstracker.dto.alert;
 
 import java.time.LocalDateTime;
 
