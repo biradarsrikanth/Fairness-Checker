@@ -1,9 +1,8 @@
 package com.example.fairnesstracker.controller;
 
-import com.example.fairnesstracker.dto.AlertRequest;
-import com.example.fairnesstracker.dto.AlertResponse;
+import com.example.fairnesstracker.dto.alert.AlertRequest;
+import com.example.fairnesstracker.dto.alert.AlertResponse;
 import com.example.fairnesstracker.entity.AlertEvent;
-import com.example.fairnesstracker.exceptions.ResourceNotFoundException;
 import com.example.fairnesstracker.service.AlertService;
 import com.example.fairnesstracker.service.EngineerService;
 import jakarta.validation.Valid;

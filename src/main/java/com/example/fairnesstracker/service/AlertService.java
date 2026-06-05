@@ -1,7 +1,7 @@
 package com.example.fairnesstracker.service;
 
-import com.example.fairnesstracker.dto.AlertRequest;
-import com.example.fairnesstracker.dto.AlertResponse;
+import com.example.fairnesstracker.dto.alert.AlertRequest;
+import com.example.fairnesstracker.dto.alert.AlertResponse;
 import com.example.fairnesstracker.entity.Engineer;
 import com.example.fairnesstracker.exceptions.ResourceNotFoundException;
 import com.example.fairnesstracker.repository.EngineerRepository;
