@@ -1,4 +1,4 @@
-package com.example.fairnesstracker.dto.pagerDuty;
+package com.example.fairnesstracker.dto.pagerDuty.incident;
 
 import lombok.Data;
 
