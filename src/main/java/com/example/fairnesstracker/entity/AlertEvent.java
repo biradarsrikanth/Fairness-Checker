@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "alret_event")
+@Table(name = "alert_event")
 @Data
 @NoArgsConstructor
 @Validated

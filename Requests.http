@@ -11,3 +11,6 @@ POST http://localhost:8080/api/pagerduty/test
 
 ###
 GET http://localhost:8080/api/pagerduty/incidents
+
+###
+GET http://localhost:8080/api/pagerduty/users

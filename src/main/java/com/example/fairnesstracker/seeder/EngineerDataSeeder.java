@@ -19,21 +19,54 @@ public class EngineerDataSeeder {
             return;
         }
 
-        saveEngineer("Srikanth", "srikanth@gmail.com", "Platform");
-        saveEngineer("Shanmukha", "shanmukha@gmail.com", "SRE");
-        saveEngineer("Pavan", "pavan@gmail.com", "Backend");
-        saveEngineer("Rahul", "rahul@gmail.com", "Infrastructure");
-        saveEngineer("Prithvi", "prithvi@gmail.com", "Platform");
-        saveEngineer("Saikiran", "saikiran@gmail.com", "SRE");
+        saveEngineer(
+                "Biradar Srikanth",
+                "PEA88GO",
+                "23r21a3309@mlrit.ac.in",
+                "Platform"
+        );
+
+        saveEngineer(
+                "Shanmukha",
+                "PEAT42T",
+                "shanmukha@mlrit.ac.in",
+                "SRE"
+        );
+
+        saveEngineer(
+                "Rahul",
+                "PLJ25U6",
+                "rahul@mlrit.ac.in",
+                "Infrastructure"
+        );
+
+        saveEngineer(
+                "Prithvi",
+                "PXRH2AD",
+                "prithvi@mlrit.ac.in",
+                "Platform"
+        );
+
+        saveEngineer(
+                "Saikiran",
+                "PB153Q3",
+                "pavan@mlrit.ac.in",
+                "SRE"
+        );
 
         System.out.println("Seeded Engineers");
     }
 
-    private void saveEngineer(String name, String email, String team) {
+    private void saveEngineer(
+            String name,
+            String pagerDutyId,
+            String email,
+            String team) {
 
         Engineer engineer = new Engineer();
 
         engineer.setName(name);
+        engineer.setPagerDutyUserId(pagerDutyId);
         engineer.setEmail(email);
         engineer.setTeam(team);
 

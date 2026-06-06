@@ -22,6 +22,9 @@ public class Engineer {
     @Setter(AccessLevel.NONE)
     private Long id;
 
+    @Column(unique = true)
+    private String pagerDutyUserId;
+
     @NotBlank(message = "Name Cannot be Empty")
     private String name;
 
