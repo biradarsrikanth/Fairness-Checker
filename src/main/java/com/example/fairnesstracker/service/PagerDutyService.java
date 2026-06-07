@@ -129,9 +129,6 @@ public class PagerDutyService {
         }
     }
 
-    // make pagerduty.user-email optional for tests/environments that don't set it
-    @Value("${pagerduty.user-email:}")
-    private String pagerDutyUserEmail;
     public void resolveIncident(String incidentId,String email) {
 
         Map<String, Object> incident = new HashMap<>();
