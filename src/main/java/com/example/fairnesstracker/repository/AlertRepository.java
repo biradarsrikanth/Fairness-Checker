@@ -8,11 +8,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
 
     List<AlertEvent> findByEngineer_Id(Long engineerId);
+    Optional<AlertEvent> findByPagerDutyIncidentId(String pagerDutyIncidentId);
 
     @Query("""
         SELECT a FROM AlertEvent a
@@ -22,7 +24,7 @@ public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
         AND (:to IS NULL OR a.triggeredAt <= :to)
     """)
     List<AlertEvent> filterAlerts(
-            @Param("engineerId") String engineerId,
+            @Param("engineerId") Long engineerId,
             @Param("severity") String severity,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to

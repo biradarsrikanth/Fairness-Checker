@@ -66,7 +66,7 @@ public class AlertEventController {
     public List<AlertEvent> getFilteredAlerts(
 
             @RequestParam(required = false)
-            String engineerId,
+            Long engineerId,
 
             @RequestParam(required = false)
             String severity,

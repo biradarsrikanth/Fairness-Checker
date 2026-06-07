@@ -85,7 +85,7 @@ public class AlertService {
     }
 
     public List<AlertEvent> filterAlerts(
-            String engineerId,
+            Long engineerId,
             String severity,
             LocalDateTime from,
             LocalDateTime to
