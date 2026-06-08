@@ -19,4 +19,9 @@ GET http://localhost:8080/api/pagerduty/users
 POST http://localhost:8080/api/pagerduty/sync
 
 ###
-POST http://localhost:8080/api/pagerduty/resolve/Q2BYIG6W9Y7KDM?email=prithvi@mlrit.ac.in
+POST http://localhost:8080/api/pagerduty/resolve/Q1OR352S07LS07?email=prithvi@mlrit.ac.in
+
+
+
+
+

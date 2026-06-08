@@ -1,2 +1,1 @@
-select* from alert_event;
-
+DELETE FROM alert_event;

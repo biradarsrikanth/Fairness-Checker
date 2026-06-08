@@ -10,6 +10,9 @@ public class PagerDutyIncident {
 
     private List<Assignment> assignments;
 
+    @JsonProperty("last_status_change_by")
+    private LastStatusChangeBy lastStatusChangeBy;
+
     private String id;
 
     private String title;

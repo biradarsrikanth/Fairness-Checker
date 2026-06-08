@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -36,5 +37,6 @@ public class Engineer {
     private String team;
 
     @OneToMany(mappedBy = "engineer")
+    @JsonIgnore
     private List<AlertEvent> alerts = new ArrayList<>();
 }

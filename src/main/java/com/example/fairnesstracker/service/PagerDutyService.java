@@ -26,6 +26,7 @@ public class PagerDutyService {
     private final String apiToken;
     private final AlertRepository alertRepository;
     private final EngineerRepository engineerRepository;
+    private static final int DEFAULT_LIMIT = 25;
 
     @Autowired
     public PagerDutyService(WebClient webClient, @Value("${pagerduty.api-token}") String apiToken, AlertRepository alertRepository, EngineerRepository engineerRepository) {
@@ -35,13 +36,34 @@ public class PagerDutyService {
         this.engineerRepository = engineerRepository;
     }
 
-    public PagerDutyResponse getIncidents() {
+    public PagerDutyResponse getIncidents(int offset, int limit) {
 
-        return webClient.get()
-                .uri("/incidents")
-                .retrieve()
-                .bodyToMono(PagerDutyResponse.class)
-                .block();
+        return webClient.get().uri(uriBuilder -> uriBuilder.path("/incidents").queryParam("offset", offset).queryParam("limit", limit).build()).retrieve().bodyToMono(PagerDutyResponse.class).block();
+    }
+
+    public PagerDutyResponse getIncidents() {
+        return getIncidents(0, DEFAULT_LIMIT);
+    }
+
+    //helper for getAllIncidents
+    private void processIncident(PagerDutyIncident incident) {
+
+        Optional<AlertEvent> existingAlert = alertRepository.findByPagerDutyIncidentId(incident.getId());
+
+        if (existingAlert.isPresent()) {
+
+            AlertEvent alert = existingAlert.get();
+
+            updateAlert(alert, incident);
+
+            alertRepository.save(alert);
+
+        } else {
+
+            AlertEvent alert = mapToAlertEvent(incident);
+
+            alertRepository.save(alert);
+        }
     }
 
     public PagerDutyUsersResponse getUsers() {
@@ -81,37 +103,58 @@ public class PagerDutyService {
         }
 
         // Engineer Mapping
-        if (incident.getAssignments() != null
-                && !incident.getAssignments().isEmpty()
-                && incident.getAssignments().get(0).getAssignee() != null) {
+        if (incident.getLastStatusChangeBy() != null) {
 
-            String pagerDutyUserId =
-                    incident.getAssignments()
-                            .get(0)
-                            .getAssignee()
-                            .getId();
+            String pagerDutyUserId = incident.getLastStatusChangeBy().getId();
 
-            engineerRepository
-                    .findByPagerDutyUserId(pagerDutyUserId)
-                    .ifPresent(alert::setEngineer);
+            engineerRepository.findByPagerDutyUserId(pagerDutyUserId).ifPresent(alert::setEngineer);
         }
+
+
+        System.out.println("Incident ID: " + incident.getId());
+
+        if (incident.getAssignments() == null) {
+            System.out.println("Assignments = NULL");
+        } else {
+            System.out.println("Assignments count = " + incident.getAssignments().size());
+
+            incident.getAssignments().forEach(a -> {
+                if (a.getAssignee() != null) {
+                    System.out.println("Assignee ID = " + a.getAssignee().getId());
+                }
+            });
+        }
+
         return alert;
     }
 
     public String syncIncidents() {
-        PagerDutyResponse response = getIncidents();
-        for (PagerDutyIncident incident : response.getIncidents()) {
-            Optional<AlertEvent> existingAlert = alertRepository.findByPagerDutyIncidentId(incident.getId());
-            if (existingAlert.isPresent()) {
-                AlertEvent alert = existingAlert.get();
-                updateAlert(alert, incident);
-                alertRepository.save(alert);
-            } else {
-                AlertEvent alert = mapToAlertEvent(incident);
-                alertRepository.save(alert);
+
+        int offset = 0;
+        int limit = 25;
+
+        boolean more;
+
+        int totalSynced = 0;
+
+        do {
+
+            PagerDutyResponse response = getIncidents(offset, limit);
+
+            for (PagerDutyIncident incident : response.getIncidents()) {
+
+                processIncident(incident);
+
+                totalSynced++;
             }
-        }
-        return "Sync Complete";
+
+            more = response.isMore();
+
+            offset += limit;
+
+        } while (more);
+
+        return "Sync Complete. Total incidents synced: " + totalSynced;
     }
 
 
@@ -123,13 +166,15 @@ public class PagerDutyService {
         if (incident.getResolvedAt() != null) {
             alert.setResolvedAt(OffsetDateTime.parse(incident.getResolvedAt()).toLocalDateTime());
         }
-        if (incident.getAssignments() != null && !incident.getAssignments().isEmpty() && incident.getAssignments().get(0).getAssignee() != null) {
-            String pagerDutyUserId = incident.getAssignments().get(0).getAssignee().getId();
+        if (incident.getLastStatusChangeBy() != null) {
+
+            String pagerDutyUserId = incident.getLastStatusChangeBy().getId();
+
             engineerRepository.findByPagerDutyUserId(pagerDutyUserId).ifPresent(alert::setEngineer);
         }
     }
 
-    public void resolveIncident(String incidentId,String email) {
+    public void resolveIncident(String incidentId, String email) {
 
         Map<String, Object> incident = new HashMap<>();
         incident.put("id", incidentId);
@@ -139,21 +184,10 @@ public class PagerDutyService {
         Map<String, Object> body = new HashMap<>();
         body.put("incident", incident);
 
-        webClient.put()
-                .uri("/incidents/{id}", incidentId)
-                .header("From", email)
-                .bodyValue(body)
-                .retrieve()
-                .onStatus(
-                        HttpStatusCode::isError,
-                        response -> response.bodyToMono(String.class)
-                                .map(error ->
-                                        new RuntimeException(
-                                                "PagerDuty Error: " + error))
-                )
-                .bodyToMono(String.class)
-                .block();
+        webClient.put().uri("/incidents/{id}", incidentId).header("From", email).bodyValue(body).retrieve().onStatus(HttpStatusCode::isError, response -> response.bodyToMono(String.class).map(error -> new RuntimeException("PagerDuty Error: " + error))).bodyToMono(String.class).block();
 
         syncIncidents();
     }
+
+
 }
