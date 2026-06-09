@@ -19,7 +19,14 @@ GET http://localhost:8080/api/pagerduty/users
 POST http://localhost:8080/api/pagerduty/sync
 
 ###
-POST http://localhost:8080/api/pagerduty/resolve/Q1OR352S07LS07?email=prithvi@mlrit.ac.in
+POST http://localhost:8080/api/pagerduty/resolve/Q2VB75DI6CDPAZ?email=23r21a3309@mlrit.ac.in
+
+###
+POST http://localhost:8080/api/webhook/pagerduty
+
+###
+POST http://localhost:8080/api/webhook/pagerduty
+
 
 
 
