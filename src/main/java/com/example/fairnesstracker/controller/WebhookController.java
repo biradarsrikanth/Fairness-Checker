@@ -25,7 +25,7 @@ public class WebhookController {
     private final AlertRepository alertRepository;
     private final EngineerRepository engineerRepository;
 
-    @Value("${PAGERDUTY_WEBHOOK_SECRET}")
+    @Value("${pagerduty.webhook.secret}")
     private String webhookSecret;
 
     @PostMapping("/pagerduty")
