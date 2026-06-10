@@ -8,7 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${pagerduty.base-url}")
+    @Value("${pagerduty.base-url:https://api.pagerduty.com}")
     private String baseUrl;
 
     @Value("${pagerduty.api-token}")
