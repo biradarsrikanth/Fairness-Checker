@@ -29,4 +29,7 @@ public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to
     );
+
+    @Query("SELECT COALESCE(MAX(a.incidentNumber), 0) FROM AlertEvent a")
+    Integer findMaxIncidentNumber();
 }

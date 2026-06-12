@@ -109,6 +109,9 @@ public class WebhookController {
             alert.setStatus(
                     incident.path("status").asText());
 
+            // Title
+            alert.setTitle(incident.path("title").asText(null));
+
             alert.setSeverity(
                     incident.path("priority")
                             .path("summary")
@@ -120,6 +123,32 @@ public class WebhookController {
                                     .asText()
                                     .replace("Z", "")));
 
+            // incident number
+            if (incident.has("incident_number")) {
+                try {
+                    alert.setIncidentNumber(incident.path("incident_number").asInt());
+                } catch (Exception ignored) {}
+            }
+
+            // urgency
+            if (incident.has("urgency")) {
+                alert.setUrgency(incident.path("urgency").asText(null));
+            }
+
+            // service info
+            if (incident.has("service") && incident.path("service").isObject()) {
+                alert.setServiceId(incident.path("service").path("id").asText(null));
+                alert.setServiceName(incident.path("service").path("summary").asText(null));
+            }
+
+            // assignee info
+            if (incident.has("assignees") && incident.path("assignees").isArray() && incident.path("assignees").size() > 0) {
+                var first = incident.path("assignees").get(0);
+                alert.setAssignedEngineerName(first.path("summary").asText(null));
+                alert.setPagerDutyUserId(first.path("id").asText(null));
+            }
+
+            alert.setSource("WEBHOOK");
             alert.setEngineer(engineer);
 
             alertRepository.save(alert);

@@ -69,7 +69,14 @@ public class AlertService {
                         alert.getEngineer().getName(),
                         alert.getSeverity(),
                         alert.getTriggeredAt(),
-                        alert.getResolvedAt()
+                        alert.getResolvedAt(),
+                        alert.getPagerDutyIncidentId(),
+                        alert.getIncidentNumber(),
+                        alert.getTitle(),
+                        alert.getServiceName(),
+                        alert.getAssignedEngineerName(),
+                        alert.getUrgency(),
+                        alert.getSource()
                 ))
                 .toList();
     }

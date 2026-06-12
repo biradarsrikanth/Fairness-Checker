@@ -21,6 +21,10 @@ public class PagerDutyIncident {
 
     private String urgency;
 
+    @JsonProperty("incident_number")
+    private Integer incidentNumber;
+
+    private ServiceInfo service;
     @JsonProperty("created_at")
     private String createdAt;
 

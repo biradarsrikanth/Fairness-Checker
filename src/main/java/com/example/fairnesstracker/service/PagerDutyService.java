@@ -48,11 +48,13 @@ public class PagerDutyService {
     //helper for getAllIncidents
     private void processIncident(PagerDutyIncident incident) {
 
-        Optional<AlertEvent> existingAlert = alertRepository.findByPagerDutyIncidentId(incident.getId());
+        Optional<AlertEvent> existing =
+                alertRepository.findByPagerDutyIncidentId(
+                        incident.getId());
 
-        if (existingAlert.isPresent()) {
+        if (existing.isPresent()) {
 
-            AlertEvent alert = existingAlert.get();
+            AlertEvent alert = existing.get();
 
             updateAlert(alert, incident);
 
@@ -78,8 +80,16 @@ public class PagerDutyService {
         // PagerDuty Incident ID
         alert.setPagerDutyIncidentId(incident.getId());
 
+        // Incident number (if present)
+        if (incident.getIncidentNumber() != null) {
+            alert.setIncidentNumber(incident.getIncidentNumber());
+        }
+
         // Status
         alert.setStatus(incident.getStatus());
+
+        // Title
+        alert.setTitle(incident.getTitle());
 
         // Severity
         if (incident.getPriority() != null) {
@@ -107,8 +117,38 @@ public class PagerDutyService {
 
             String pagerDutyUserId = incident.getLastStatusChangeBy().getId();
 
-            engineerRepository.findByPagerDutyUserId(pagerDutyUserId).ifPresent(alert::setEngineer);
+            alert.setPagerDutyUserId(pagerDutyUserId);
+
+            engineerRepository.findByPagerDutyUserId(pagerDutyUserId)
+                    .ifPresent(engineer -> {
+                        alert.setEngineer(engineer);
+                        alert.setAssignedEngineerName(engineer.getName());
+                    });
         }
+
+        // Assign first assignee name/id if present
+        if (incident.getAssignments() != null && !incident.getAssignments().isEmpty()) {
+            var a = incident.getAssignments().get(0).getAssignee();
+            if (a != null) {
+                alert.setAssignedEngineerName(a.getSummary());
+                // keep pagerDutyUserId from last_status_change_by if present; otherwise use assignee id
+                if (alert.getPagerDutyUserId() == null) {
+                    alert.setPagerDutyUserId(a.getId());
+                }
+            }
+        }
+
+        // Urgency
+        alert.setUrgency(incident.getUrgency());
+
+        // Service info
+        if (incident.getService() != null) {
+            alert.setServiceId(incident.getService().getId());
+            alert.setServiceName(incident.getService().getName());
+        }
+
+        // Source marking
+        alert.setSource("API_SYNC");
 
 
         System.out.println("Incident ID: " + incident.getId());
@@ -124,7 +164,7 @@ public class PagerDutyService {
                 }
             });
         }
-
+        System.out.println(incident.getAssignments());
         return alert;
     }
 
@@ -160,6 +200,10 @@ public class PagerDutyService {
 
     private void updateAlert(AlertEvent alert, PagerDutyIncident incident) {
         alert.setStatus(incident.getStatus());
+        alert.setTitle(incident.getTitle());
+        if (incident.getIncidentNumber() != null) {
+            alert.setIncidentNumber(incident.getIncidentNumber());
+        }
         if (incident.getPriority() != null) {
             alert.setSeverity(incident.getPriority().getSummary());
         }
@@ -170,7 +214,30 @@ public class PagerDutyService {
 
             String pagerDutyUserId = incident.getLastStatusChangeBy().getId();
 
-            engineerRepository.findByPagerDutyUserId(pagerDutyUserId).ifPresent(alert::setEngineer);
+            alert.setPagerDutyUserId(pagerDutyUserId);
+
+            engineerRepository.findByPagerDutyUserId(pagerDutyUserId)
+                    .ifPresent(engineer -> {
+                        alert.setEngineer(engineer);
+                        alert.setAssignedEngineerName(engineer.getName());
+                    });
+        }
+
+        // update assignee/name/urgency/service if present
+        if (incident.getAssignments() != null && !incident.getAssignments().isEmpty()) {
+            var a = incident.getAssignments().get(0).getAssignee();
+            if (a != null) {
+                alert.setAssignedEngineerName(a.getSummary());
+                if (alert.getPagerDutyUserId() == null) {
+                    alert.setPagerDutyUserId(a.getId());
+                }
+            }
+        }
+
+        alert.setUrgency(incident.getUrgency());
+        if (incident.getService() != null) {
+            alert.setServiceId(incident.getService().getId());
+            alert.setServiceName(incident.getService().getName());
         }
     }
 
