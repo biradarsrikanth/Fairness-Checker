@@ -1,0 +1,5 @@
+# You own the Spring Boot code
+/springboot-api/ @biradarsrikanth
+
+# Your teammate owns the FastAPI code
+/fastapi-service/ @saikiran525
