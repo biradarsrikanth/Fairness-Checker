@@ -7,6 +7,7 @@ import com.example.fairnesstracker.entity.AlertEvent;
 import com.example.fairnesstracker.repository.AlertRepository;
 import com.example.fairnesstracker.repository.EngineerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -28,8 +29,9 @@ public class PagerDutyService {
     private final EngineerRepository engineerRepository;
     private static final int DEFAULT_LIMIT = 25;
 
+
     @Autowired
-    public PagerDutyService(WebClient webClient, @Value("${pagerduty.api-token}") String apiToken, AlertRepository alertRepository, EngineerRepository engineerRepository) {
+    public PagerDutyService(@Qualifier("pagerDutyClient") WebClient webClient, @Value("${pagerduty.api-token}") String apiToken, AlertRepository alertRepository, EngineerRepository engineerRepository) {
         this.webClient = webClient;
         this.apiToken = apiToken;
         this.alertRepository = alertRepository;
@@ -128,7 +130,7 @@ public class PagerDutyService {
 
         // Assign first assignee name/id if present
         if (incident.getAssignments() != null && !incident.getAssignments().isEmpty()) {
-            var a = incident.getAssignments().get(0).getAssignee();
+            var a = incident.getAssignments().getFirst().getAssignee();
             if (a != null) {
                 alert.setAssignedEngineerName(a.getSummary());
                 // keep pagerDutyUserId from last_status_change_by if present; otherwise use assignee id
@@ -225,7 +227,7 @@ public class PagerDutyService {
 
         // update assignee/name/urgency/service if present
         if (incident.getAssignments() != null && !incident.getAssignments().isEmpty()) {
-            var a = incident.getAssignments().get(0).getAssignee();
+            var a = incident.getAssignments().getFirst().getAssignee();
             if (a != null) {
                 alert.setAssignedEngineerName(a.getSummary());
                 if (alert.getPagerDutyUserId() == null) {

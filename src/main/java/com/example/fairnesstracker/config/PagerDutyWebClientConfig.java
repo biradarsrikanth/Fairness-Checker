@@ -1,12 +1,13 @@
 package com.example.fairnesstracker.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-public class WebClientConfig {
+public class PagerDutyWebClientConfig {
 
     @Value("${pagerduty.base-url}")
     private String baseUrl;
@@ -15,7 +16,8 @@ public class WebClientConfig {
     private String apiToken;
 
     @Bean
-    public WebClient pagerDutyWebClient() {
+    @Qualifier("pagerDutyClient")
+    public WebClient pagerDutyClient() {
 
         return WebClient.builder()
                 .baseUrl(baseUrl)
