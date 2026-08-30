@@ -11,7 +11,7 @@ public class PythonScorerConfig {
 
     @Bean("pythonScorerClient")
     public WebClient PythonScorerClient(
-            @Value("${python.scorer.base-url}") String baseUrl
+            @Value("${python_scorer_base_url}") String baseUrl
     ) {
         return WebClient.builder()
                 .baseUrl(baseUrl)

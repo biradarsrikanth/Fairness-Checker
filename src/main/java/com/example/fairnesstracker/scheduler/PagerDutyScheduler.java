@@ -17,7 +17,7 @@ public class PagerDutyScheduler {
         this.pagerDutyService = pagerDutyService;
     }
 
-    @Scheduled(fixedRateString = "${pagerduty.sync-rate}")
+    @Scheduled(fixedRateString = "${PAGERDUTY_SYNC_RATE}")
     public void syncPagerDutyIncidents() {
         try {
             System.out.println(

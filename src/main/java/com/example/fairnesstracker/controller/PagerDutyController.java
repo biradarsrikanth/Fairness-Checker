@@ -19,8 +19,11 @@ public class PagerDutyController {
     }
 
     @GetMapping("/incidents")
-    public PagerDutyResponse getIncidents() {
-        return pagerDutyService.getIncidents();
+    public PagerDutyResponse getIncidents(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "25") int limit
+    ) {
+        return pagerDutyService.getIncidents(offset, limit);
     }
 
     @GetMapping("/users")
