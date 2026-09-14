@@ -28,3 +28,13 @@ POST http://localhost:8080/api/webhook/pagerduty
 POST http://localhost:8080/api/webhook/pagerduty
 
 ###
+GET  http://localhost:8080/api/burnout
+
+###
+GET http://localhost:8080/api/combined-score
+
+###
+GET http://localhost:8080/api/timeofday
+
+###
+GET http://localhost:8080/api/engineer/Biradar%20Srikanth

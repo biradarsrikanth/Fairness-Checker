@@ -1,11 +1,11 @@
 package com.example.fairnesstracker.exceptions;
 
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -47,6 +47,40 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.badRequest()
+                .body(error);
+    }
+
+    // FastAPI returned an HTTP error
+    @ExceptionHandler(ScoringServiceException.class)
+    public ResponseEntity<ApiError> handleScoringServiceException(
+            ScoringServiceException ex) {
+
+        HttpStatus status = HttpStatus.valueOf(ex.getStatus());
+
+        ApiError error = new ApiError(
+                status.value(),
+                status.getReasonPhrase(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(status)
+                .body(error);
+    }
+
+    // Spring could not connect to FastAPI
+    @ExceptionHandler(WebClientRequestException.class)
+    public ResponseEntity<ApiError> handleWebClientRequestException(
+            WebClientRequestException ex) {
+
+        ApiError error = new ApiError(
+                503,
+                "SERVICE_UNAVAILABLE",
+                "Scoring service is currently unavailable",
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(error);
     }
 
