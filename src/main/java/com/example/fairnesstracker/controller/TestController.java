@@ -6,10 +6,13 @@ import com.example.fairnesstracker.entity.Engineer;
 import com.example.fairnesstracker.repository.AlertRepository;
 import com.example.fairnesstracker.repository.EngineerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+// Creates fake alerts: only available with the "dev" profile, never in production
+@Profile("dev")
 @RestController
 @RequestMapping("/api")
 public class TestController {

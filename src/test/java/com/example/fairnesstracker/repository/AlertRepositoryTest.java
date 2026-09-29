@@ -2,6 +2,7 @@ package com.example.fairnesstracker.repository;
 
 import com.example.fairnesstracker.entity.AlertEvent;
 import com.example.fairnesstracker.entity.Engineer;
+import com.example.fairnesstracker.entity.Team;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -19,6 +20,9 @@ class AlertRepositoryTest {
     private AlertRepository repo;
 
     @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
     private EngineerRepository engineerRepository;
 
     @Test
@@ -27,7 +31,7 @@ class AlertRepositoryTest {
         Engineer engineer = new Engineer();
         engineer.setName("Test Engineer");
         engineer.setEmail("test@gmail.com");
-        engineer.setTeam("Platform");
+        engineer.setTeam(teamRepository.save(new Team("Platform", "Asia/Kolkata")));
 
         Engineer savedEngineer =
                 engineerRepository.save(engineer);
@@ -62,7 +66,7 @@ class AlertRepositoryTest {
         Engineer engineer = new Engineer();
         engineer.setName("Srikanth");
         engineer.setEmail("srikanth@gmail.com");
-        engineer.setTeam("Platform");
+        engineer.setTeam(teamRepository.save(new Team("Platform", "Asia/Kolkata")));
 
         engineer = engineerRepository.save(engineer);
 

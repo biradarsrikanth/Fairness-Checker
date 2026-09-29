@@ -1,20 +1,20 @@
 package com.example.fairnesstracker.controller;
 
-import com.example.fairnesstracker.entity.AlertEvent;
-import com.example.fairnesstracker.entity.Engineer;
-import com.example.fairnesstracker.repository.AlertRepository;
-import com.example.fairnesstracker.repository.EngineerRepository;
 import com.example.fairnesstracker.security.HmacVerifier;
+import com.example.fairnesstracker.service.PagerDutyService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
@@ -23,8 +23,7 @@ import java.time.ZoneOffset;
 public class WebhookController {
 
     private final ObjectMapper objectMapper;
-    private final AlertRepository alertRepository;
-    private final EngineerRepository engineerRepository;
+    private final PagerDutyService pagerDutyService;
 
     @Value("${pagerduty.webhook.secret}")
     private String webhookSecret;
@@ -32,140 +31,37 @@ public class WebhookController {
     @PostMapping("/pagerduty")
     public ResponseEntity<String> handleWebhook(
             @RequestBody(required = false) String rawPayload,
-            @RequestHeader(value = "X-PagerDuty-Signature",
-                    required = false) String signature) {
+            @RequestHeader(value = "X-PagerDuty-Signature", required = false) String signature) {
+
+        if (rawPayload == null || rawPayload.isBlank()) {
+            return ResponseEntity.badRequest().body("Empty payload");
+        }
+
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(rawPayload);
+        } catch (JsonProcessingException e) {
+            return ResponseEntity.badRequest().body("Invalid JSON");
+        }
+
+        JsonNode event = root.path("event");
+        if ("pagey.ping".equals(event.path("event_type").asText())) {
+            return ResponseEntity.ok("Ping received");
+        }
+
+        if (!HmacVerifier.verify(rawPayload, signature, webhookSecret)) {
+            log.warn("Rejected PagerDuty webhook with an invalid signature");
+            return ResponseEntity.status(401).body("Invalid signature");
+        }
 
         try {
-
-            if (rawPayload == null || rawPayload.isBlank()) {
-                return ResponseEntity.badRequest()
-                        .body("Empty payload");
-            }
-
-            JsonNode root = objectMapper.readTree(rawPayload);
-
-            String eventType = root.path("event")
-                    .path("event_type")
-                    .asText();
-
-            if ("pagey.ping".equals(eventType)) {
-                return ResponseEntity.ok("Ping received");
-            }
-
-            boolean valid = HmacVerifier.verify(
-                    rawPayload,
-                    signature,
-                    webhookSecret);
-
-            if (!valid) {
-                return ResponseEntity.status(401)
-                        .body("Invalid signature");
-            }
-
-            JsonNode incident = root.path("event")
-                    .path("data");
-
-            String incidentId = incident.path("id")
-                    .asText();
-
-            if ("incident.resolved".equals(eventType)) {
-
-                alertRepository
-                        .findByPagerDutyIncidentId(incidentId)
-                        .ifPresent(alert -> {
-                            alert.setStatus("resolved");
-                            alert.setResolvedAt(LocalDateTime.now(ZoneOffset.UTC));
-                            alertRepository.save(alert);
-                        });
-
-                return ResponseEntity.ok("Incident resolved");
-            }
-
-            if (alertRepository
-                    .findByPagerDutyIncidentId(incidentId)
-                    .isPresent()) {
-
-                return ResponseEntity.ok("Already processed");
-            }
-
-            if (incident.path("assignees").isEmpty()) {
-                return ResponseEntity.ok("No assignee on incident");
-            }
-
-            String pagerDutyUserId = incident
-                    .path("assignees")
-                    .path(0)
-                    .path("id")
-                    .asText();
-
-            Engineer engineer = engineerRepository
-                    .findByPagerDutyUserId(pagerDutyUserId)
-                    .orElse(null);
-
-            if (engineer == null) {
-                return ResponseEntity.ok("Engineer mapping missing");
-            }
-
-            AlertEvent alert = new AlertEvent();
-
-            alert.setPagerDutyIncidentId(
-                    incident.path("id").asText());
-
-            alert.setStatus(
-                    incident.path("status").asText());
-
-            // Title
-            alert.setTitle(incident.path("title").asText(null));
-
-            alert.setSeverity(
-                    incident.path("priority")
-                            .path("summary")
-                            .asText());
-
-            alert.setTriggeredAt(
-                    LocalDateTime.parse(
-                            incident.path("created_at")
-                                    .asText()
-                                    .replace("Z", "")));
-
-            // incident number
-            if (incident.has("incident_number")) {
-                try {
-                    alert.setIncidentNumber(incident.path("incident_number").asInt());
-                } catch (Exception ignored) {}
-            }
-
-            // urgency
-            if (incident.has("urgency")) {
-                alert.setUrgency(incident.path("urgency").asText(null));
-            }
-
-            // service info
-            if (incident.has("service") && incident.path("service").isObject()) {
-                alert.setServiceId(incident.path("service").path("id").asText(null));
-                alert.setServiceName(incident.path("service").path("summary").asText(null));
-            }
-
-            // assignee info
-            if (incident.has("assignees") && incident.path("assignees").isArray() && incident.path("assignees").size() > 0) {
-                var first = incident.path("assignees").get(0);
-                alert.setAssignedEngineerName(first.path("summary").asText(null));
-                alert.setPagerDutyUserId(first.path("id").asText(null));
-            }
-
-            alert.setSource("WEBHOOK");
-            alert.setEngineer(engineer);
-
-            alertRepository.save(alert);
-
-            return ResponseEntity.ok("Received");
-
-        } catch (Exception e) {
-
-            log.error("Webhook processing failed", e);
-
-            return ResponseEntity.internalServerError()
-                    .body("Webhook Error");
+            String outcome = pagerDutyService.applyWebhookEvent(event);
+            log.info("PagerDuty webhook {} for incident {}: {}", event.path("event_type").asText(),
+                    event.path("data").path("id").asText(), outcome);
+            return ResponseEntity.ok(outcome);
+        } catch (DataIntegrityViolationException e) {
+            // The scheduled sync stored the same incident at the same moment; the unique index kept one copy
+            return ResponseEntity.ok("Already processed");
         }
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
 
+// All timestamps are UTC. Allowed values are also enforced by CHECK constraints (V3 migration)
 @Entity
 @Table(name = "alert_event")
 @Data
@@ -16,20 +17,30 @@ import java.time.LocalDateTime;
 
 public class AlertEvent {
 
+    public static final String STATUS_TRIGGERED = "triggered";
+    public static final String STATUS_ACKNOWLEDGED = "acknowledged";
+    public static final String STATUS_RESOLVED = "resolved";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Setter(AccessLevel.NONE)
     private Long id;
 
     // PagerDuty Incident Details
+    @Column(unique = true)
     private String pagerDutyIncidentId;
     private Integer incidentNumber;
 
     private String title;
-    private String status;
+
+    @Pattern(regexp = "triggered|acknowledged|resolved")
+    @Column(nullable = false)
+    private String status = STATUS_TRIGGERED;
 
     @NotNull(message = "Requires trigger Time")
     private LocalDateTime triggeredAt;
+
+    private LocalDateTime acknowledgedAt;
 
     private LocalDateTime resolvedAt;
 
@@ -39,17 +50,19 @@ public class AlertEvent {
     )
     private String severity;
 
+    @Pattern(regexp = "high|low")
     private String urgency;
 
-    // Service Information
-    private String serviceId;
-    private String serviceName;
+    @ManyToOne
+    @JoinColumn(name = "service_id")
+    private MonitoredService service;
 
-    // Assignee Information
+    // Who was paged first; the full history is in alert_assignment
     private String pagerDutyUserId;
     private String assignedEngineerName;
 
-    // Source of record (WEBHOOK, API_SYNC, SCHEDULED_SYNC)
+    // Source of record: API (imported), API_SYNC, WEBHOOK or MANUAL
+    @Pattern(regexp = "API|API_SYNC|WEBHOOK|MANUAL")
     private String source;
 
     @ManyToOne

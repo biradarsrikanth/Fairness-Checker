@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface AlertRepository  extends JpaRepository<AlertEvent,Long> {
 
     List<AlertEvent> findByEngineer_Id(Long engineerId);
+
+    boolean existsByEngineer_Id(Long engineerId);
     Optional<AlertEvent> findByPagerDutyIncidentId(String pagerDutyIncidentId);
 
     @Query("""
