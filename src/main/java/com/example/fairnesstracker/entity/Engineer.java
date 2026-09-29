@@ -29,14 +29,23 @@ public class Engineer {
     @NotBlank(message = "Name Cannot be Empty")
     private String name;
 
+    // Unique regardless of case (ux_engineer_email)
     @Email(message = "Email Not Valid!")
     @NotBlank(message = "Email is required")
     private String email;
 
-    @NotBlank(message = "Team is required")
-    private String team;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "team_id")
+    private Team team;
 
+    // Engineers who left the rotation stay for history; inactive ones don't count as "zero alerts"
+    @Column(nullable = false)
+    private boolean active = true;
+
+    // Excluded from toString/equals/hashCode: AlertEvent points back here, which would recurse
     @OneToMany(mappedBy = "engineer")
     @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<AlertEvent> alerts = new ArrayList<>();
 }

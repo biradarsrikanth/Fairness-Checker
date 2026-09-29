@@ -1,0 +1,35 @@
+# Runs the gateway on its own. The database (Azure PostgreSQL) is external: this file only connects to it,
+# using AZURE_DB_* from .env (see .env.example).
+#
+#   docker network create fairness-net   # once per machine, shared with fairneess-scorer
+#   docker compose up --build
+#
+# The scorer is a separate repo. Start it with its own compose file on the same network and this service
+# reaches it at http://scorer:8000; without it, score endpoints answer 503 and everything else works.
+name: fairness-checker
+
+services:
+  checker:
+    build: .
+    image: fairness-checker:local
+    env_file: .env
+    environment:
+      # Inside Docker, the scorer is reached by its service name on fairness-net, not 127.0.0.1
+      PYTHON_SCORER_URL: http://scorer:8000
+      # Structured JSON logs (Elastic Common Schema), including the request id
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      - fairness-net
+    restart: unless-stopped
+
+networks:
+  fairness-net:
+    external: true

@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.repository;
 
 import com.example.fairnesstracker.entity.Engineer;
+import com.example.fairnesstracker.entity.Team;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -15,6 +16,9 @@ class EngineerRepositoryTest {
     @Autowired
     private EngineerRepository repo;
 
+    @Autowired
+    private TeamRepository teamRepository;
+
     @Test
     void saveAndFind_works() {
 
@@ -22,7 +26,7 @@ class EngineerRepositoryTest {
 
         engineer.setName("Srikanth");
         engineer.setEmail("srikanth@gmail.com");
-        engineer.setTeam("Platform");
+        engineer.setTeam(teamRepository.save(new Team("Platform", "Asia/Kolkata")));
 
         Engineer saved = repo.save(engineer);
 
@@ -33,6 +37,6 @@ class EngineerRepositoryTest {
 
         assertEquals("Srikanth", found.getName());
         assertEquals("srikanth@gmail.com", found.getEmail());
-        assertEquals("Platform", found.getTeam());
+        assertEquals("Platform", found.getTeam().getName());
     }
 }
