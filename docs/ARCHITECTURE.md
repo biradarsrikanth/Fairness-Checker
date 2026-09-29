@@ -144,11 +144,12 @@ Every call carries:
 
 ## Delivery
 
-- **CI:** each repo runs its own pipeline on pull requests. Java: `mvn verify`, including a Testcontainers
-  test that applies every Flyway migration to a real PostgreSQL and validates the JPA mapping. Python: ruff,
-  mypy, unit tests and integration tests against a PostgreSQL service container.
-- **CD:** a merge to `main` in Fairness-Checker deploys the JAR to Azure App Service. Flyway runs pending
-  migrations at startup. The scorer image is built by CI and is not deployed automatically yet.
+- **CI/CD:** GitHub Actions workflows are switched off for now (removed from `.github/workflows`), so merges
+  don't build or deploy anything. Run the checks locally before merging: Java `./mvnw verify` (includes a
+  Testcontainers test that applies every Flyway migration to a real PostgreSQL and validates the JPA
+  mapping); Python `ruff check src tests`, `mypy`, `pytest`. To bring back the Azure deploy, restore
+  `.github/workflows/main_fairness-tracker.yml` from git history; Flyway then runs pending migrations when
+  the deployed app starts.
 - **Local (Docker):** each repo has its own `docker-compose.yml` and runs independently. They share the external
   Docker network `fairness-net` (`docker network create fairness-net`, once per machine), where the gateway
   reaches the scorer at `http://scorer:8000`. Neither compose file runs a database: both connect to the
