@@ -34,9 +34,8 @@ public class EngineerService {
 
         return engineerRepository.findById(id)
                 .orElseThrow(()->
-                        new RuntimeException(
-                                "Enineer not Found with id:"+id
-                        )
+                        new ResourceNotFoundException(
+                                "Engineer not found with id: " + id)
                 );
     }
 
@@ -44,9 +43,8 @@ public class EngineerService {
     public Engineer updateEngineer(Long id, Engineer updatedEngineer){
         Engineer existingEngineer=engineerRepository.findById(id)
                 .orElseThrow(()->
-                        new RuntimeException(
-                                "Enineer not Found with id:"+id
-                        )
+                        new ResourceNotFoundException(
+                                "Engineer not found with id: " + id)
                 );
         existingEngineer.setName(updatedEngineer.getName());
         existingEngineer.setEmail(updatedEngineer.getEmail());

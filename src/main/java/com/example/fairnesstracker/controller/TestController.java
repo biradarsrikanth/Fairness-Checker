@@ -8,6 +8,7 @@ import com.example.fairnesstracker.repository.EngineerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping("/api")
@@ -15,6 +16,7 @@ public class TestController {
 
     @Autowired
     private EngineerRepository engineerRepository;
+    @Autowired
     private AlertRepository alertRepository;
 
     @PostMapping("/test")
@@ -28,7 +30,7 @@ public class TestController {
 
         event.setEngineer(engineer);
         event.setSeverity("P1");
-        event.setTriggeredAt(LocalDateTime.now());
+        event.setTriggeredAt(LocalDateTime.now(ZoneOffset.UTC));
 
         return alertRepository.save(event);
     }

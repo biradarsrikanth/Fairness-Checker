@@ -12,6 +12,7 @@ import com.example.fairnesstracker.entity.AlertEvent;
 import com.example.fairnesstracker.repository.AlertRepository;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -36,7 +37,7 @@ public class AlertService {
 
         alert.setEngineer(engineer);
         alert.setSeverity(request.severity());
-        alert.setTriggeredAt(LocalDateTime.now());
+        alert.setTriggeredAt(LocalDateTime.now(ZoneOffset.UTC));
 
         return alertRepository.save(alert);
     }
@@ -49,8 +50,8 @@ public class AlertService {
 
         return alertRepository.findById(id)
                 .orElseThrow(()->
-                        new RuntimeException(
-                                "Event Not Found with id:"+id)
+                        new ResourceNotFoundException(
+                                "Event not found with id: " + id)
                 );
     }
 
@@ -85,8 +86,8 @@ public class AlertService {
 
         AlertEvent alertEvent = alertRepository.findById(id)
                 .orElseThrow(()->
-                        new RuntimeException(
-                                "Event Not Found with id:"+id)
+                        new ResourceNotFoundException(
+                                "Event not found with id: " + id)
                 );
         alertRepository.delete(alertEvent);
 

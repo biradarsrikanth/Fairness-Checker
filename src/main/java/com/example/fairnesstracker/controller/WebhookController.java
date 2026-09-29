@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Slf4j
 @RestController
@@ -25,7 +26,7 @@ public class WebhookController {
     private final AlertRepository alertRepository;
     private final EngineerRepository engineerRepository;
 
-    @Value("${PAGERDUTY_WEBHOOK_SECRET}")
+    @Value("${pagerduty.webhook.secret}")
     private String webhookSecret;
 
     @PostMapping("/pagerduty")
@@ -73,7 +74,7 @@ public class WebhookController {
                         .findByPagerDutyIncidentId(incidentId)
                         .ifPresent(alert -> {
                             alert.setStatus("resolved");
-                            alert.setResolvedAt(LocalDateTime.now());
+                            alert.setResolvedAt(LocalDateTime.now(ZoneOffset.UTC));
                             alertRepository.save(alert);
                         });
 
@@ -87,9 +88,13 @@ public class WebhookController {
                 return ResponseEntity.ok("Already processed");
             }
 
+            if (incident.path("assignees").isEmpty()) {
+                return ResponseEntity.ok("No assignee on incident");
+            }
+
             String pagerDutyUserId = incident
                     .path("assignees")
-                    .get(0)
+                    .path(0)
                     .path("id")
                     .asText();
 
