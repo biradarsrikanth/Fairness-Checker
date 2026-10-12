@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.util.UriBuilder;
 import reactor.util.retry.Retry;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 /**
  * Client for the scorer's /v1 API.
@@ -59,28 +61,34 @@ public class ScoringClient {
     }
 
     public Scores.FairnessReport fairness(ScoreQuery query) {
-        return get("/v1/scores/fairness", query, Scores.FairnessReport.class);
+        return get("/v1/scores/fairness", query::applyTo, Scores.FairnessReport.class);
     }
 
     public Scores.BurnoutReport burnout(ScoreQuery query) {
-        return get("/v1/scores/burnout", query, Scores.BurnoutReport.class);
+        return get("/v1/scores/burnout", query::applyTo, Scores.BurnoutReport.class);
     }
 
     public Scores.TimeOfDayReport timeOfDay(ScoreQuery query) {
-        return get("/v1/scores/timeofday", query, Scores.TimeOfDayReport.class);
+        return get("/v1/scores/timeofday", query::applyTo, Scores.TimeOfDayReport.class);
     }
 
     public Scores.EngineerReport engineer(long engineerId, ScoreQuery query) {
         // An engineer is always scored within their own team
-        return get("/v1/scores/engineers/{id}", query.withoutTeam(), Scores.EngineerReport.class, engineerId);
+        return get("/v1/scores/engineers/{id}", query.withoutTeam()::applyTo, Scores.EngineerReport.class, engineerId);
     }
 
-    private <T> T get(String path, ScoreQuery query, Class<T> type, Object... uriVariables) {
+    /** Fairness and burnout per calendar week or month ({@code granularity}: "week" or "month"). */
+    public Scores.TrendReport trend(ScoreQuery query, String granularity) {
+        return get("/v1/scores/trend", builder -> query.applyTo(builder).queryParam("granularity", granularity),
+                Scores.TrendReport.class);
+    }
+
+    private <T> T get(String path, UnaryOperator<UriBuilder> parameters, Class<T> type, Object... uriVariables) {
         // Read on the calling (servlet) thread; the MDC isn't available on Netty threads
         String requestId = MDC.get(RequestIdFilter.MDC_KEY);
 
         return webClient.get()
-                .uri(builder -> query.applyTo(builder.path(path)).build(uriVariables))
+                .uri(builder -> parameters.apply(builder.path(path)).build(uriVariables))
                 .headers(headers -> {
                     if (requestId != null) headers.set(RequestIdFilter.HEADER, requestId);
                 })

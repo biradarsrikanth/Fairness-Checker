@@ -66,6 +66,14 @@ public final class Scores {
         }
     }
 
+    /** One calendar week or month; {@code end} is exclusive. {@code averageBurnout} is null when nobody is compared. */
+    public record TrendPeriod(OffsetDateTime start, OffsetDateTime end, int alertCount, double gini, String label,
+                              String confidence, Double averageBurnout, int highRiskCount) {
+    }
+
+    public record TrendReport(Window window, String team, String granularity, List<TrendPeriod> periods) {
+    }
+
     public record EngineerReport(Window window, EngineerRef engineer, boolean active, BurnoutScore burnout,
                                  double teamSharePct, TimeOfDayCounts timeOfDay) {
     }
