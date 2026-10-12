@@ -8,6 +8,7 @@ import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -66,6 +67,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                         HttpServletRequest request) {
         log.warn("Constraint violation: {}", ex.getMostSpecificCause().getMessage());
         return respond(ErrorCode.CONFLICT, "The change conflicts with existing data", request);
+    }
+
+    // Safety net for a list endpoint that doesn't restrict its sort fields (see Sorting)
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiError> handleUnknownSortProperty(PropertyReferenceException ex,
+                                                              HttpServletRequest request) {
+        return respond(ErrorCode.VALIDATION_FAILED.status(), ErrorCode.VALIDATION_FAILED,
+                "sort: can't sort by '" + ex.getPropertyName() + "'",
+                List.of(new FieldError("sort", "can't sort by '" + ex.getPropertyName() + "'")), request);
     }
 
     // PagerDuty didn't answer (connection refused, timeout); scorer failures arrive as ScoringServiceException

@@ -3,18 +3,29 @@ package com.example.fairnesstracker.engineer;
 import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
+import com.example.fairnesstracker.common.web.PageResponse;
+import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
+import com.example.fairnesstracker.engineer.dto.EngineerFilter;
 import com.example.fairnesstracker.team.TeamService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @Transactional
 public class EngineerService {
+
+    static final Set<String> SORTABLE = Set.of("name", "email");
+
     private final EngineerRepository engineerRepository;
     private final AlertRepository alertRepository;
     private final TeamService teamService;
@@ -35,10 +46,19 @@ public class EngineerService {
         return engineerMapper.toResponse(engineerRepository.save(engineer));
     }
 
-    //List all Engineers
+    /** One page of engineers, optionally of one team and/or only (in)active ones; by name unless sorted otherwise. */
     @Transactional(readOnly = true)
-    public List<EngineerResponse> getAllEngineers(){
-        return engineerRepository.findAll().stream().map(engineerMapper::toResponse).toList();
+    public PageResponse<EngineerResponse> list(EngineerFilter filter, Pageable pageable) {
+        List<Specification<Engineer>> conditions = new ArrayList<>();
+        if (filter.team() != null && !filter.team().isBlank()) {
+            conditions.add((engineer, query, cb) -> cb.equal(engineer.get("team").get("name"), filter.team().strip()));
+        }
+        if (filter.active() != null) {
+            conditions.add((engineer, query, cb) -> cb.equal(engineer.get("active"), filter.active()));
+        }
+        Page<Engineer> page = engineerRepository.findAll(Specification.allOf(conditions),
+                Sorting.restrict(pageable, SORTABLE));
+        return PageResponse.from(page.map(engineerMapper::toResponse));
     }
 
 

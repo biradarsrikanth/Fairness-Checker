@@ -1,16 +1,19 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.engineer.EngineerRepository;
-import com.example.fairnesstracker.team.TeamRepository;
-
+import com.example.fairnesstracker.alert.dto.AlertFilter;
 import com.example.fairnesstracker.engineer.Engineer;
+import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.team.Team;
+import com.example.fairnesstracker.team.TeamRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -63,25 +66,51 @@ class AlertRepositoryTest {
     }
 
     @Test
-    void findByEngineerId_works() {
+    void filtersCombineAndTheEndDateIsInclusive() {
+        Team platform = teamRepository.save(new Team("Platform", "Asia/Kolkata"));
+        Team payments = teamRepository.save(new Team("Payments", "Asia/Kolkata"));
+        Engineer asha = engineer("Asha", "asha@example.com", platform);
+        Engineer bala = engineer("Bala", "bala@example.com", payments);
 
+        AlertEvent matching = alert(asha, "P1", "resolved", LocalDateTime.of(2026, 9, 30, 23, 59));
+        alert(asha, "P1", "resolved", LocalDateTime.of(2026, 10, 1, 0, 0));    // after the end date
+        alert(asha, "P3", "resolved", LocalDateTime.of(2026, 9, 15, 12, 0));   // other severity
+        alert(asha, "P1", "triggered", LocalDateTime.of(2026, 9, 15, 12, 0));  // other status
+        alert(bala, "P1", "resolved", LocalDateTime.of(2026, 9, 15, 12, 0));   // other team
+        alert(null, "P1", "resolved", LocalDateTime.of(2026, 9, 15, 12, 0));   // unattributed
+
+        var filter = new AlertFilter(null, "Platform", "P1", "resolved",
+                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
+        var page = repo.findAll(AlertSpecifications.matching(filter), PageRequest.of(0, 10));
+
+        assertEquals(List.of(matching.getId()), page.map(AlertEvent::getId).getContent());
+    }
+
+    @Test
+    void noFiltersMatchesEveryAlertIncludingUnattributedOnes() {
+        alert(null, "P2", "triggered", LocalDateTime.of(2026, 9, 15, 12, 0));
+        alert(engineer("Asha", "asha@example.com", teamRepository.save(new Team("Platform", "Asia/Kolkata"))),
+                "P2", "triggered", LocalDateTime.of(2026, 9, 16, 12, 0));
+
+        var everything = new AlertFilter(null, null, null, null, null, null);
+        assertEquals(2, repo.findAll(AlertSpecifications.matching(everything), PageRequest.of(0, 10))
+                .getTotalElements());
+    }
+
+    private Engineer engineer(String name, String email, Team team) {
         Engineer engineer = new Engineer();
-        engineer.setName("Srikanth");
-        engineer.setEmail("srikanth@gmail.com");
-        engineer.setTeam(teamRepository.save(new Team("Platform", "Asia/Kolkata")));
+        engineer.setName(name);
+        engineer.setEmail(email);
+        engineer.setTeam(team);
+        return engineerRepository.save(engineer);
+    }
 
-        engineer = engineerRepository.save(engineer);
-
+    private AlertEvent alert(Engineer engineer, String severity, String status, LocalDateTime triggeredAt) {
         AlertEvent alert = new AlertEvent();
         alert.setEngineer(engineer);
-        alert.setSeverity("P1");
-        alert.setTriggeredAt(LocalDateTime.now());
-
-        repo.save(alert);
-
-        var alerts =
-                repo.findByEngineer_Id(engineer.getId());
-
-        assertEquals(1, alerts.size());
+        alert.setSeverity(severity);
+        alert.setStatus(status);
+        alert.setTriggeredAt(triggeredAt);
+        return repo.save(alert);
     }
 }

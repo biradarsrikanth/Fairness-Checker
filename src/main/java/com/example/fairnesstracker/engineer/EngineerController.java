@@ -1,14 +1,19 @@
 package com.example.fairnesstracker.engineer;
 
+import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
+import com.example.fairnesstracker.engineer.dto.EngineerFilter;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.SortDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 
 @Tag(name = "Engineers", description = "Engineers who go on call")
@@ -27,9 +32,11 @@ public class EngineerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(engineerService.saveEngineer(request));
     }
 
+    @Operation(summary = "List engineers", description = "Sort by name (default) or email.")
     @GetMapping
-    public List<EngineerResponse> getAllEngineers(){
-        return engineerService.getAllEngineers();
+    public PageResponse<EngineerResponse> list(@Valid @ParameterObject EngineerFilter filter,
+                                               @ParameterObject @SortDefault("name") Pageable pageable) {
+        return engineerService.list(filter, pageable);
     }
 
 

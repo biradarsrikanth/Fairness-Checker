@@ -31,12 +31,17 @@ Needs JDK 21.
 
 Interactive docs: <http://localhost:8080/swagger-ui.html> (OpenAPI spec at `/v3/api-docs`; `API_DOCS_ENABLED=false` hides both).
 
+Paged lists take `page` (from 0), `size` (default 20, at most 100) and `sort=field,asc|desc`, and return
+`{content, page, size, totalElements, totalPages}`. Dates (`start`, `end`) are UTC days, both inclusive; times
+in responses are UTC instants. Errors are `application/problem+json` with a stable `code` (see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#contracts)).
+
 | Area | Routes |
 |---|---|
 | Teams | `GET/POST /api/v1/teams`, `GET/PUT/DELETE /api/v1/teams/{id}` |
-| Engineers | `GET/POST /api/v1/engineers`, `GET/PUT/DELETE /api/v1/engineers/{id}` (deactivate instead of deleting engineers with history) |
-| Alerts | `GET/POST /api/v1/alerts`, `GET /api/v1/alerts/{id}`, `GET /api/v1/alerts/{id}/assignments`, `GET /api/v1/alerts/filter` |
-| On-call | `GET /api/v1/oncall?from=&to=&engineerId=` |
+| Engineers | `GET /api/v1/engineers?team=&active=` (paged), `POST /api/v1/engineers`, `GET/PUT/DELETE /api/v1/engineers/{id}` (deactivate instead of deleting engineers with history) |
+| Alerts | `GET /api/v1/alerts?engineerId=&team=&severity=&status=&start=&end=` (paged), `POST /api/v1/alerts`, `GET/DELETE /api/v1/alerts/{id}`, `GET /api/v1/alerts/{id}/assignments` |
+| On-call | `GET /api/v1/oncall?start=&end=&engineerId=` (paged) |
 | Scores | `GET /api/v1/scores/{fairness,burnout,timeofday}`, `GET /api/v1/scores/engineers/{id}` (`days` or `start`/`end`, optional `team`) |
 | PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
 | Operations | `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus` |

@@ -1,11 +1,16 @@
 package com.example.fairnesstracker.alert;
 
+import com.example.fairnesstracker.alert.dto.AlertFilter;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.exception.ValidationException;
+import com.example.fairnesstracker.common.web.PageResponse;
+import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,10 +18,14 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional
 public class AlertService {
+
+    static final Set<String> SORTABLE = Set.of("triggeredAt", "resolvedAt", "severity", "status");
+
     private final AlertRepository alertRepository;
     private final EngineerRepository engineerRepository;
     private final AlertAssignmentRepository assignmentRepository;
@@ -54,9 +63,15 @@ public class AlertService {
         return alertMapper.toResponse(saved);
     }
 
+    /** One page of alerts matching every filter that is set; newest first unless sorted otherwise. */
     @Transactional(readOnly = true)
-    public List<AlertResponse> getAllEvents(){
-        return alertRepository.findAll().stream().map(alertMapper::toResponse).toList();
+    public PageResponse<AlertResponse> list(AlertFilter filter, Pageable pageable) {
+        if (filter.start() != null && filter.end() != null && filter.end().isBefore(filter.start())) {
+            throw ValidationException.onField("end", "must be on or after start");
+        }
+        Page<AlertEvent> page = alertRepository.findAll(AlertSpecifications.matching(filter),
+                Sorting.restrict(pageable, SORTABLE));
+        return PageResponse.from(page.map(alertMapper::toResponse));
     }
 
     @Transactional(readOnly = true)
@@ -72,33 +87,8 @@ public class AlertService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<AlertResponse> getAlertsByEngineer(Long engineerId) {
-
-        engineerRepository.findById(engineerId)
-                .orElseThrow(() -> ResourceNotFoundException.of("Engineer", engineerId));
-
-        return alertRepository.findByEngineer_Id(engineerId)
-                .stream()
-                .map(alertMapper::toResponse)
-                .toList();
-    }
-
     public void deleteEvent(Long id){
         alertRepository.delete(find(id));
-    }
-
-    @Transactional(readOnly = true)
-    public List<AlertResponse> filterAlerts(
-            Long engineerId,
-            String severity,
-            LocalDateTime from,
-            LocalDateTime to
-    ){
-        return alertRepository.filterAlerts(engineerId, severity, from, to)
-                .stream()
-                .map(alertMapper::toResponse)
-                .toList();
     }
 
     private AlertEvent find(Long id) {

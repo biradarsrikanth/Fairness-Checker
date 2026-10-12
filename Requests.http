@@ -5,20 +5,20 @@
 ### Teams
 GET {{host}}/api/v1/teams
 
-### Engineers
-GET {{host}}/api/v1/engineers
+### Engineers of one team, by name
+GET {{host}}/api/v1/engineers?team=SRE&active=true
 
-### Alerts for one engineer
-GET {{host}}/api/v1/alerts/engineer/1
+### Newest alerts (paged)
+GET {{host}}/api/v1/alerts?page=0&size=20
 
-### Alerts filtered by severity and date
-GET {{host}}/api/v1/alerts/filter?severity=P1&from=2016-01-01&to=2016-12-31
+### Alerts filtered by engineer, severity and date, oldest first
+GET {{host}}/api/v1/alerts?engineerId=1&severity=P1&start=2016-01-01&end=2016-12-31&sort=triggeredAt,asc
 
 ### Paging history of one alert
 GET {{host}}/api/v1/alerts/1/assignments
 
 ### On-call shifts
-GET {{host}}/api/v1/oncall?from=2026-09-01&to=2026-09-30
+GET {{host}}/api/v1/oncall?start=2026-09-01&end=2026-09-30
 
 ### Fairness (2016 data needs an explicit window)
 GET {{host}}/api/v1/scores/fairness?start=2016-01-01&end=2016-12-31

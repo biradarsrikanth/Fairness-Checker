@@ -129,8 +129,8 @@ class ErrorContractTest {
 
     @Test
     void missingRequiredParameter() throws Exception {
-        expect(get("/api/v1/oncall").param("to", "2026-09-30"), 400, "VALIDATION_FAILED")
-                .andExpect(jsonPath("$.errors[0].field").value("from"))
+        expect(get("/api/v1/oncall").param("end", "2026-09-30"), 400, "VALIDATION_FAILED")
+                .andExpect(jsonPath("$.errors[0].field").value("start"))
                 .andExpect(jsonPath("$.errors[0].message").value("is required"));
     }
 

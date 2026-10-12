@@ -166,15 +166,32 @@ class ApiJsonContractTest {
     }
 
     @Test
-    void oncallShifts() throws Exception {
+    void oncallShiftPage() throws Exception {
         mvc.perform(get("/api/v1/oncall")
-                        .param("from", "2026-09-01").param("to", "2026-09-30")
+                        .param("start", "2026-09-01").param("end", "2026-09-30")
                         .param("engineerId", asha.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
-                        [{"id": %d, "engineerId": %d, "engineerName": "Asha", "escalationLevel": 1,
-                          "startsAt": "2026-09-01T03:30:00Z", "endsAt": "2026-09-08T03:30:00Z"}]
+                        {"content": [{"id": %d, "engineerId": %d, "engineerName": "Asha", "escalationLevel": 1,
+                                      "startsAt": "2026-09-01T03:30:00Z", "endsAt": "2026-09-08T03:30:00Z"}],
+                         "page": 0, "size": 20, "totalElements": 1, "totalPages": 1}
                         """.formatted(shift.getId(), asha.getId()), JsonCompareMode.STRICT));
+    }
+
+    @Test
+    void alertPage() throws Exception {
+        mvc.perform(get("/api/v1/alerts").param("engineerId", asha.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"content": [{"id": %d, "engineerId": %d, "engineerName": "Asha", "team": "Contract SRE",
+                                      "severity": "P2", "status": "resolved", "urgency": "high",
+                                      "triggeredAt": "2026-09-27T18:00:00Z", "acknowledgedAt": "2026-09-27T18:05:30Z",
+                                      "resolvedAt": "2026-09-27T19:00:00Z", "pagerDutyIncidentId": "QCONTRACT1",
+                                      "incidentNumber": 4242, "title": "Database failover",
+                                      "serviceName": "Payments API", "assignedEngineerName": "Asha",
+                                      "source": "API_SYNC"}],
+                         "page": 0, "size": 20, "totalElements": 1, "totalPages": 1}
+                        """.formatted(resolved.getId(), asha.getId()), JsonCompareMode.STRICT));
     }
 
     @Test
