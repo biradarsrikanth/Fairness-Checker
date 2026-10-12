@@ -1,5 +1,8 @@
 package com.example.fairnesstracker.engineer;
 
+import com.example.fairnesstracker.user.AppUser;
+import com.example.fairnesstracker.user.AppUserRepository;
+import com.example.fairnesstracker.user.Role;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -8,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,6 +29,12 @@ class TeamAndEngineerApiTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @Autowired
+    private EngineerRepository engineers;
+
+    @Autowired
+    private AppUserRepository users;
 
     @Test
     void teamLifecycleAndValidation() throws Exception {
@@ -73,6 +84,20 @@ class TeamAndEngineerApiTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/alerts/1/assignments"))
                 .andExpect(jsonPath("$[0].kind").value("PAGED"))
                 .andExpect(jsonPath("$[0].source").value("MANUAL"));
+    }
+
+    @Test
+    void engineerWithALoginCannotBeDeleted() throws Exception {
+        post("/api/v1/teams", "{\"name\": \"SRE\"}", 201);
+        post("/api/v1/engineers", engineer("Asha", "asha@example.com", "SRE"), 201);
+        AppUser login = new AppUser("asha@example.com", "Asha", Role.ENGINEER);
+        login.setPassword("{noop}x", Instant.now());
+        login.setEngineer(engineers.findById(1L).orElseThrow());
+        users.save(login);
+
+        mvc.perform(delete("/api/v1/engineers/1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Engineer 1 has a login; delete the login first"));
     }
 
     private org.springframework.test.web.servlet.ResultActions post(String path, String body, int status)

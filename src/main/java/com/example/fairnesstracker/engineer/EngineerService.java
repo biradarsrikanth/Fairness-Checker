@@ -9,6 +9,7 @@ import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
 import com.example.fairnesstracker.engineer.dto.EngineerFilter;
 import com.example.fairnesstracker.team.TeamService;
+import com.example.fairnesstracker.user.AppUserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,13 +31,16 @@ public class EngineerService {
     private final AlertRepository alertRepository;
     private final TeamService teamService;
     private final EngineerMapper engineerMapper;
+    private final AppUserRepository userRepository;
 
     public EngineerService(EngineerRepository engineerRepository, AlertRepository alertRepository,
-                           TeamService teamService, EngineerMapper engineerMapper) {
+                           TeamService teamService, EngineerMapper engineerMapper,
+                           AppUserRepository userRepository) {
         this.engineerRepository = engineerRepository;
         this.alertRepository = alertRepository;
         this.teamService = teamService;
         this.engineerMapper = engineerMapper;
+        this.userRepository = userRepository;
     }
 
     //save Engineer
@@ -80,6 +84,9 @@ public class EngineerService {
         Engineer engineer = find(id);
         if (alertRepository.existsByEngineer_Id(id)) {
             throw new ConflictException("Engineer " + id + " has alerts; set \"active\": false instead of deleting");
+        }
+        if (userRepository.existsByEngineer_Id(id)) {
+            throw new ConflictException("Engineer " + id + " has a login; delete the login first");
         }
         engineerRepository.delete(engineer);
     }
