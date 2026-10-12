@@ -5,7 +5,6 @@ import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
 import com.example.fairnesstracker.scoring.dto.Scores;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -13,8 +12,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.reactive.function.client.WebClient;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -38,7 +38,7 @@ class ScoringClientTest {
         ScorerProperties props = new ScorerProperties(server.url("/").toString(), API_KEY,
                 Duration.ofSeconds(1), Duration.ofMillis(500), 2);
         WebClient webClient = new HttpClientConfig()
-                .scorerWebClient(WebClient.builder(), props, Jackson2ObjectMapperBuilder.json());
+                .scorerWebClient(WebClient.builder(), props, JsonMapper.builder());
         client = new ScoringClient(webClient, props, new ObjectMapper());
     }
 
@@ -53,9 +53,11 @@ class ScoringClientTest {
         server.enqueue(json(200, """
                 {"window": {"start": "2026-09-01T00:00:00+05:30", "end": "2026-10-01T00:00:00+05:30",
                             "timezone": "Asia/Kolkata"},
-                 "team": "SRE", "gini": 0.42, "label": "UNEQUAL", "confidence": "LOW", "alert_count": 7,
+                 "team": "SRE", "basis": "ACTIVE_ENGINEERS", "gini": 0.42, "label": "UNEQUAL",
+                 "rotation_gini": null, "confidence": "LOW", "alert_count": 7,
                  "engineers": [{"engineer_id": 1, "name": "Asha", "team": "SRE", "alert_count": 5,
-                                "load": 20.5, "share_pct": 71.4, "added_later": true}]}
+                                "escalations_received": 1, "load": 20.5, "share_pct": 71.4,
+                                "oncall_hours": null, "load_per_oncall_hour": null, "added_later": true}]}
                 """));
         MDC.put(RequestIdFilter.MDC_KEY, "req-123");
 
@@ -101,6 +103,23 @@ class ScoringClientTest {
                 .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
                     assertThat(e.getStatus()).isEqualTo(404);
                     assertThat(e.getMessage()).isEqualTo("Engineer 9 not found");
+                });
+        assertThat(server.getRequestCount()).isEqualTo(1);
+    }
+
+    @Test
+    void responseMissingARequiredFieldIsAGatewayErrorNotAZero() {
+        // engineers[0] has no alert_count; reading it as 0 would show a wrong score instead of an error
+        server.enqueue(json(200, """
+                {"window": null, "team": null, "engineers": [{"engineer_id": 1, "name": "Asha", "team": "SRE",
+                  "escalations_received": 0, "score": 10.0, "risk": "LOW", "night_pct": 0, "evening_pct": 0,
+                  "weekend_pct": 0, "trend_ratio": 1.0, "components": null}]}
+                """));
+
+        assertThatThrownBy(() -> client.burnout(new ScoreQuery(30, null, null, null)))
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(502);
+                    assertThat(e.getMessage()).isEqualTo("Scoring service returned an unexpected response");
                 });
         assertThat(server.getRequestCount()).isEqualTo(1);
     }

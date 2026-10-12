@@ -20,7 +20,6 @@ import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyIncident;
 import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.incident.ServiceInfo;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,6 +28,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.reactive.function.client.WebClient;
+import tools.jackson.databind.JsonNode;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -218,7 +218,7 @@ public class PagerDutyService {
     /** Applies a PagerDuty V3 webhook event. Returns a short description for the response body. */
     @org.springframework.transaction.annotation.Transactional
     public String applyWebhookEvent(JsonNode event) {
-        String type = event.path("event_type").asText("");
+        String type = event.path("event_type").asString("");
         JsonNode data = event.path("data");
         String incidentId = text(data, "id");
         if (!type.startsWith("incident.") || incidentId == null) {
@@ -488,7 +488,7 @@ public class PagerDutyService {
 
     private static String text(JsonNode node, String field) {
         JsonNode value = node.path(field);
-        return value.isValueNode() && !value.isNull() ? value.asText() : null;
+        return value.isValueNode() && !value.isNull() ? value.asString() : null;
     }
 
     record Upsert(boolean created, boolean attributed) {

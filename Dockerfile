@@ -7,8 +7,8 @@ COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
 
 COPY src ./src
-# Tests run in CI; skipping here keeps the image build independent of test config
-RUN mvn -B -q package -DskipTests
+# Tests run in CI; maven.test.skip also skips compiling them, which keeps the image build fast
+RUN mvn -B -q package -Dmaven.test.skip=true
 
 # Runtime stage: JRE only
 FROM eclipse-temurin:21-jre

@@ -2,20 +2,19 @@ package com.example.fairnesstracker.common.config;
 
 import com.example.fairnesstracker.pagerduty.PagerDutyProperties;
 import com.example.fairnesstracker.scoring.ScorerProperties;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import io.netty.channel.ChannelOption;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.http.codec.json.Jackson2JsonDecoder;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.codec.json.JacksonJsonDecoder;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 
@@ -30,20 +29,23 @@ public class HttpClientConfig {
     @Bean("scorerWebClient")
     public WebClient scorerWebClient(WebClient.Builder builder,
                                      ScorerProperties props,
-                                     Jackson2ObjectMapperBuilder mapperBuilder) {
+                                     JsonMapper.Builder jsonMapperBuilder) {
         // The scorer speaks snake_case; our own API stays camelCase. Keep the scorer's timezone offset
-        // (e.g. +05:30) instead of converting window times to UTC
-        ObjectMapper snakeCase = mapperBuilder.build();
-        snakeCase.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-        snakeCase.disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
+        // (e.g. +05:30) instead of converting window times to UTC, and ignore fields we don't know yet so
+        // the scorer can add fields without breaking the gateway
+        JsonMapper snakeCase = jsonMapperBuilder
+                .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+                .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
 
         return builder.clone()
                 .clientConnector(connector(props.connectTimeout(), props.responseTimeout()))
                 .baseUrl(props.baseUrl())
                 .defaultHeader("X-API-Key", props.apiKey())
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .codecs(c -> c.defaultCodecs().jackson2JsonDecoder(
-                        new Jackson2JsonDecoder(snakeCase, MediaType.APPLICATION_JSON)))
+                .codecs(c -> c.defaultCodecs().jacksonJsonDecoder(
+                        new JacksonJsonDecoder(snakeCase, MediaType.APPLICATION_JSON)))
                 .build();
     }
 

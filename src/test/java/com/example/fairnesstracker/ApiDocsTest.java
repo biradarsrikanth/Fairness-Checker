@@ -1,14 +1,14 @@
 package com.example.fairnesstracker;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +33,7 @@ class ApiDocsTest {
     void documentsEveryRouteGroupUnderV1() throws Exception {
         JsonNode spec = spec();
         List<String> paths = new ArrayList<>();
-        spec.path("paths").fieldNames().forEachRemaining(paths::add);
+        paths.addAll(spec.path("paths").propertyNames());
 
         assertThat(paths).contains(
                 "/api/v1/teams", "/api/v1/engineers/{id}", "/api/v1/alerts/{id}/assignments", "/api/v1/oncall",
@@ -49,8 +49,8 @@ class ApiDocsTest {
         JsonNode parameters = spec().at("/paths/~1api~1v1~1scores~1fairness/get/parameters");
         List<String> query = new ArrayList<>();
         parameters.forEach(p -> {
-            assertThat(p.path("in").asText()).isEqualTo("query");
-            query.add(p.path("name").asText());
+            assertThat(p.path("in").asString()).isEqualTo("query");
+            query.add(p.path("name").asString());
         });
         assertThat(query).containsExactlyInAnyOrder("days", "start", "end", "team");
     }
@@ -58,7 +58,7 @@ class ApiDocsTest {
     @Test
     void groupsOperationsByTag() throws Exception {
         List<String> tags = new ArrayList<>();
-        spec().path("tags").forEach(t -> tags.add(t.path("name").asText()));
+        spec().path("tags").forEach(t -> tags.add(t.path("name").asString()));
         assertThat(tags).contains("Teams", "Engineers", "Alerts", "On-call", "Scores", "PagerDuty", "Webhooks");
     }
 

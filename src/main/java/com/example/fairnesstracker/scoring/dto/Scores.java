@@ -6,7 +6,9 @@ import java.util.List;
 /**
  * Scorer v1 responses (fairneess-scorer src/schemas/scores.py). The scorer sends snake_case, which the
  * scorer WebClient maps onto these camelCase records; our API returns them as camelCase.
- * Unknown fields are ignored, so the scorer can add fields without breaking the gateway.
+ * Unknown fields are ignored, so the scorer can add fields without breaking the gateway. A missing
+ * primitive field is a contract violation (the call fails with 502) rather than a silent 0; fields the
+ * scorer may omit are wrapper types such as {@code Double}.
  */
 public final class Scores {
 

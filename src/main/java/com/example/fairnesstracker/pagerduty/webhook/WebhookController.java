@@ -1,9 +1,6 @@
 package com.example.fairnesstracker.pagerduty.webhook;
 
 import com.example.fairnesstracker.pagerduty.PagerDutyService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +12,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Tag(name = "Webhooks", description = "PagerDuty webhook receiver (HMAC-signed)")
@@ -42,12 +42,12 @@ public class WebhookController {
         JsonNode root;
         try {
             root = objectMapper.readTree(rawPayload);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return ResponseEntity.badRequest().body("Invalid JSON");
         }
 
         JsonNode event = root.path("event");
-        if ("pagey.ping".equals(event.path("event_type").asText())) {
+        if ("pagey.ping".equals(event.path("event_type").asString())) {
             return ResponseEntity.ok("Ping received");
         }
 
@@ -58,8 +58,8 @@ public class WebhookController {
 
         try {
             String outcome = pagerDutyService.applyWebhookEvent(event);
-            log.info("PagerDuty webhook {} for incident {}: {}", event.path("event_type").asText(),
-                    event.path("data").path("id").asText(), outcome);
+            log.info("PagerDuty webhook {} for incident {}: {}", event.path("event_type").asString(),
+                    event.path("data").path("id").asString(), outcome);
             return ResponseEntity.ok(outcome);
         } catch (DataIntegrityViolationException e) {
             // The scheduled sync stored the same incident at the same moment; the unique index kept one copy

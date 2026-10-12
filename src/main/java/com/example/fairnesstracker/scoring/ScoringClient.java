@@ -4,17 +4,18 @@ import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
 import com.example.fairnesstracker.scoring.dto.Scores;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.timeout.ReadTimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.codec.DecodingException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import reactor.util.retry.Retry;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.Set;
@@ -26,7 +27,8 @@ import java.util.Set;
  *   <li>Connection failures and 502/503/504 are retried with exponential backoff; timeouts are not,
  *       because retrying a slow service only adds load to it.</li>
  *   <li>Scorer errors are translated into gateway statuses: 4xx pass through, auth failures mean our
- *       configuration is wrong (502), timeouts become 504 and other failures 502/503.</li>
+ *       configuration is wrong (502), timeouts become 504 and other failures 502/503. A response that
+ *       doesn't match the contract is also a 502.</li>
  * </ul>
  */
 @Slf4j
@@ -86,6 +88,7 @@ public class ScoringClient {
                                 path, signal.totalRetries() + 1, signal.failure().toString()))
                         .onRetryExhaustedThrow((spec, signal) -> signal.failure()))
                 .onErrorMap(WebClientRequestException.class, ScoringClient::fromRequestFailure)
+                .onErrorMap(DecodingException.class, ex -> fromInvalidResponse(path, ex))
                 .block();
     }
 
@@ -111,6 +114,12 @@ public class ScoringClient {
         return new ScoringServiceException(503, 0, "Scoring service is unavailable");
     }
 
+    // The scorer answered 200 with JSON that doesn't match the contract (e.g. a required field missing)
+    private static ScoringServiceException fromInvalidResponse(String path, DecodingException ex) {
+        log.error("Scorer response for {} doesn't match the v1 contract: {}", path, ex.getMessage());
+        return new ScoringServiceException(502, 200, "Scoring service returned an unexpected response");
+    }
+
     private static boolean isRetryable(Throwable ex) {
         if (ex instanceof ScoringServiceException s) {
             return RETRYABLE_STATUSES.contains(s.getUpstreamStatus());
@@ -131,7 +140,7 @@ public class ScoringClient {
     private String detail(String body) {
         try {
             JsonNode detail = objectMapper.readTree(body).path("detail");
-            if (detail.isTextual()) return detail.asText();
+            if (detail.isString()) return detail.asString();
             if (!detail.isMissingNode()) return truncate(detail.toString());
         } catch (Exception ignored) {
             // not JSON
