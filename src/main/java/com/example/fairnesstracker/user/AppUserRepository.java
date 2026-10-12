@@ -1,13 +1,23 @@
 package com.example.fairnesstracker.user;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface AppUserRepository extends JpaRepository<AppUser, Long> {
+public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpecificationExecutor<AppUser> {
+
+    // The engineer in the same query; teams are batch-loaded per page (AppUser.teams), since fetching a
+    // collection here would make Hibernate page in memory
+    @Override
+    @EntityGraph(attributePaths = "engineer")
+    Page<AppUser> findAll(Specification<AppUser> spec, Pageable pageable);
 
     // lower() on both sides matches the ux_app_user_email index (IgnoreCase would generate upper())
     @Query("SELECT u FROM AppUser u WHERE lower(u.email) = lower(:email)")
@@ -21,6 +31,10 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findWithAccessById(Long id);
 
     boolean existsByEngineer_Id(Long engineerId);
+
+    Optional<AppUser> findByEngineer_Id(Long engineerId);
+
+    long countByRoleAndEnabledTrue(Role role);
 
     // AccessPolicy: is this team one of the manager's?
     boolean existsByIdAndTeams_Id(Long userId, Long teamId);

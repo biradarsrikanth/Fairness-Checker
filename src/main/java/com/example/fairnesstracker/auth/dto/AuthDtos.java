@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.auth.dto;
 
+import com.example.fairnesstracker.team.dto.TeamDtos.TeamRef;
 import com.example.fairnesstracker.user.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -38,8 +39,5 @@ public final class AuthDtos {
             + "managed ones for a MANAGER, their own for an ENGINEER)")
     public record UserResponse(Long id, String email, String fullName, Role role, Long engineerId,
                                List<TeamRef> teams, boolean mustChangePassword) {
-    }
-
-    public record TeamRef(Long id, String name) {
     }
 }

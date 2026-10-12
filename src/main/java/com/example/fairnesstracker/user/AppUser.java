@@ -19,6 +19,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -78,8 +79,9 @@ public class AppUser {
     @Column(nullable = false)
     private boolean mustChangePassword;
 
-    // MANAGER logins: the teams they can see. Unused for other roles
+    // MANAGER logins: the teams they can see. Unused for other roles. Loaded for a page of users at once
     @ManyToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 100)
     @JoinTable(name = "user_team_access",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "team_id"))

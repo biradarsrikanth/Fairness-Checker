@@ -17,4 +17,8 @@ public final class TeamDtos {
 
     public record TeamResponse(Long id, String name, String timezone) {
     }
+
+    /** A team named in another resource, e.g. the teams a user can see. */
+    public record TeamRef(Long id, String name) {
+    }
 }

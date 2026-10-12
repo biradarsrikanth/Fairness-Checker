@@ -4,7 +4,7 @@ import com.example.fairnesstracker.audit.AuditAction;
 import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.auth.RefreshTokenService.IssuedRefreshToken;
 import com.example.fairnesstracker.auth.RefreshTokenService.Rotation;
-import com.example.fairnesstracker.auth.dto.AuthDtos.TeamRef;
+import com.example.fairnesstracker.team.dto.TeamDtos.TeamRef;
 import com.example.fairnesstracker.auth.dto.AuthDtos.UserResponse;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.security.AccessToken;

@@ -1,12 +1,11 @@
 package com.example.fairnesstracker.audit;
 
 import com.example.fairnesstracker.common.web.RequestIdFilter;
-import com.example.fairnesstracker.security.JwtService;
+import com.example.fairnesstracker.security.CurrentUser;
 import com.example.fairnesstracker.user.AppUser;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -37,15 +36,11 @@ public class AuditService {
     /** What the signed-in user did. */
     @Transactional
     public void record(AuditAction action, String entityType, Object entityId, Map<String, ?> details) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = null;
-        String email = null;
-        if (authentication instanceof JwtAuthenticationToken jwt) {
-            userId = Long.valueOf(jwt.getName());
-            email = jwt.getToken().getClaimAsString(JwtService.EMAIL_CLAIM);
-        } else if (authentication != null && authentication.isAuthenticated()) {
-            email = authentication.getName();
-        }
+        Long userId = CurrentUser.id().orElse(null);
+        String email = CurrentUser.email().orElseGet(() -> {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            return authentication != null && authentication.isAuthenticated() ? authentication.getName() : null;
+        });
         save(userId, email, action, entityType, entityId, details);
     }
 
