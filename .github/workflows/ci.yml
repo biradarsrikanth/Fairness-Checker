@@ -1,0 +1,30 @@
+name: CI
+
+# Build and test only. The Azure deploy (main_fairness-tracker.yml) stays off until the new release is ready;
+# restore it from git history (commit 7a7316f^) when deploying again.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          cache: maven
+
+      # Includes SchemaContractTest, which runs the Flyway migrations on PostgreSQL via Testcontainers
+      - name: Build and test
+        run: mvn -B verify
+
+      - name: Build image
+        run: docker build -t fairness-checker:${{ github.sha }} .
