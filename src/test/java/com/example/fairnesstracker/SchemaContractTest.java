@@ -177,6 +177,43 @@ class SchemaContractTest {
         assertThat(jdbc.queryForObject("SELECT triggered_by IS NULL FROM sync_run", Boolean.class)).isTrue();
     }
 
+    @Test
+    void analyticsViewKeepsItsColumns() {
+        assertThat(columns("analytics_alert_v")).containsExactly("alert_id", "engineer_id", "engineer_name",
+                "team_id", "team", "service_id", "service_name", "severity", "status", "triggered_at",
+                "acknowledged_at", "resolved_at", "triggered_at_local", "hour_local", "dow_local", "ack_minutes",
+                "resolve_minutes", "is_after_hours", "escalation_count");
+    }
+
+    @Test
+    void analyticsViewComputesLocalTimeDurationsAndAfterHours() {
+        long engineer = engineer("asha@example.com", team("India", "Asia/Kolkata"));
+        // Friday 2026-09-25 13:00 UTC = 18:30 in Kolkata: after hours. Acknowledged after 6, resolved after 90 min
+        long evening = jdbc.queryForObject("INSERT INTO alert_event (triggered_at, acknowledged_at, resolved_at, "
+                + "engineer_id) VALUES ('2026-09-25 13:00', '2026-09-25 13:06', '2026-09-25 14:30', ?) RETURNING id",
+                Long.class, engineer);
+        jdbc.update("INSERT INTO alert_assignment (alert_id, engineer_id, kind, assigned_at, source) "
+                + "VALUES (?, ?, 'ESCALATED', '2026-09-25 13:10', 'LOG')", evening, engineer);
+        // Wednesday 2026-09-23 05:00 UTC = 10:30 in Kolkata: office hours, still open
+        jdbc.update("INSERT INTO alert_event (triggered_at, engineer_id) VALUES ('2026-09-23 05:00', ?)", engineer);
+        // No engineer, so no team: read in UTC. Sunday 2026-09-27 10:00
+        jdbc.update("INSERT INTO alert_event (triggered_at) VALUES ('2026-09-27 10:00')");
+
+        List<java.util.Map<String, Object>> rows = jdbc.queryForList("SELECT hour_local, dow_local, ack_minutes, "
+                + "resolve_minutes, is_after_hours, escalation_count, team FROM analytics_alert_v ORDER BY triggered_at");
+
+        assertThat(rows).extracting(r -> r.get("hour_local"), r -> r.get("dow_local"), r -> r.get("is_after_hours"))
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(10, 3, false),
+                        org.assertj.core.groups.Tuple.tuple(18, 5, true),
+                        org.assertj.core.groups.Tuple.tuple(10, 7, true));
+        assertThat(((Number) rows.get(1).get("ack_minutes")).doubleValue()).isEqualTo(6.0);
+        assertThat(((Number) rows.get(1).get("resolve_minutes")).doubleValue()).isEqualTo(90.0);
+        assertThat(((Number) rows.get(1).get("escalation_count")).longValue()).isEqualTo(1);
+        assertThat(rows.get(0).get("resolve_minutes")).isNull();
+        assertThat(rows.get(2).get("team")).isNull();
+    }
+
     // PostgreSQL aborts the whole transaction on an error; a savepoint keeps the test's transaction usable
     private void assertRejected(String sql, Class<? extends Exception> expected) {
         jdbc.execute("SAVEPOINT check_constraint");
