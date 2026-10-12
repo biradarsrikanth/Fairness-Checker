@@ -129,6 +129,54 @@ class SchemaContractTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM refresh_token", Long.class)).isZero();
     }
 
+    @Test
+    void theAuditLogIsAppendOnly() {
+        long entry = jdbc.queryForObject("INSERT INTO audit_log (action, details) VALUES ('LOGIN_SUCCEEDED', "
+                + "'{\"ip\": \"x\"}'::jsonb) RETURNING id", Long.class);
+
+        assertRejected("UPDATE audit_log SET action = 'X' WHERE id = " + entry, Exception.class);
+        assertRejected("DELETE FROM audit_log WHERE id = " + entry, Exception.class);
+        assertThat(jdbc.queryForObject("SELECT details->>'ip' FROM audit_log WHERE id = ?", String.class, entry))
+                .isEqualTo("x");
+    }
+
+    @Test
+    void syncWebhookAndReportConstraints() {
+        long admin = user("admin@example.com", "ADMIN", null);
+        jdbc.update("INSERT INTO webhook_event (pagerduty_event_id, event_type, status, payload) "
+                + "VALUES ('E1', 'incident.triggered', 'RECEIVED', '{}')");
+
+        // The same PagerDuty event is stored once
+        assertRejected("INSERT INTO webhook_event (pagerduty_event_id, event_type, status, payload) "
+                + "VALUES ('E1', 'incident.triggered', 'RECEIVED', '{}')", DuplicateKeyException.class);
+        assertRejected("INSERT INTO webhook_event (pagerduty_event_id, event_type, status, payload) "
+                + "VALUES ('E2', 'x', 'DONE', '{}')", DataIntegrityViolationException.class);
+        assertRejected("INSERT INTO sync_run (kind, trigger_type, status) VALUES ('USERS', 'MANUAL', 'RUNNING')",
+                DataIntegrityViolationException.class);
+        assertRejected("INSERT INTO sync_run (kind, trigger_type, status, finished_at) "
+                + "VALUES ('INCIDENTS', 'MANUAL', 'FAILED', now() - interval '1 hour')", DataIntegrityViolationException.class);
+        assertRejected("INSERT INTO report_export (user_id, report_type, format, window_start, window_end, status) "
+                + "VALUES (" + admin + ", 'ANALYTICS', 'CSV', '2026-09-01', '2026-09-30', 'RUNNING')",
+                DataIntegrityViolationException.class);
+        assertRejected("INSERT INTO report_export (user_id, report_type, format, window_start, window_end, status) "
+                + "VALUES (" + admin + ", 'ANALYTICS', 'PDF', '2026-09-30', '2026-09-01', 'RUNNING')",
+                DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingAUserKeepsTheirHistory() {
+        long admin = user("admin@example.com", "ADMIN", null);
+        jdbc.update("INSERT INTO audit_log (user_id, actor_email, action) VALUES (?, 'admin@example.com', 'USER_CREATED')",
+                admin);
+        jdbc.update("INSERT INTO sync_run (kind, trigger_type, status, triggered_by) VALUES ('INCIDENTS', 'MANUAL', 'SUCCEEDED', ?)",
+                admin);
+
+        jdbc.update("DELETE FROM app_user WHERE id = ?", admin);
+
+        assertThat(jdbc.queryForObject("SELECT actor_email FROM audit_log", String.class)).isEqualTo("admin@example.com");
+        assertThat(jdbc.queryForObject("SELECT triggered_by IS NULL FROM sync_run", Boolean.class)).isTrue();
+    }
+
     // PostgreSQL aborts the whole transaction on an error; a savepoint keeps the test's transaction usable
     private void assertRejected(String sql, Class<? extends Exception> expected) {
         jdbc.execute("SAVEPOINT check_constraint");
