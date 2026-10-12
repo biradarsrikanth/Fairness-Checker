@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.scoring;
 
-import com.example.fairnesstracker.scoring.ScoringClient;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
 import com.example.fairnesstracker.scoring.dto.Scores;
 import jakarta.validation.Valid;

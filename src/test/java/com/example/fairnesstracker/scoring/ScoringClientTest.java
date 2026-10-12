@@ -3,7 +3,6 @@ package com.example.fairnesstracker.scoring;
 import com.example.fairnesstracker.common.config.HttpClientConfig;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
-import com.example.fairnesstracker.scoring.ScorerProperties;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
 import com.example.fairnesstracker.scoring.dto.Scores;
 import com.fasterxml.jackson.databind.ObjectMapper;

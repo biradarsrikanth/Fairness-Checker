@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.engineer;
 
-import com.example.fairnesstracker.engineer.Engineer;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

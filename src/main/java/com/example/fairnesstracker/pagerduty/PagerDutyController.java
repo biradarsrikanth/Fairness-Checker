@@ -1,7 +1,5 @@
 package com.example.fairnesstracker.pagerduty;
 
-import com.example.fairnesstracker.pagerduty.OncallSyncService;
-import com.example.fairnesstracker.pagerduty.PagerDutyService;
 import com.example.fairnesstracker.pagerduty.dto.SyncResult;
 import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;

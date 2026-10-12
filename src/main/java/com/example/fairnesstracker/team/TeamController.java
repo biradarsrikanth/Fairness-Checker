@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.team;
 
-import com.example.fairnesstracker.team.TeamService;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
 import jakarta.validation.Valid;

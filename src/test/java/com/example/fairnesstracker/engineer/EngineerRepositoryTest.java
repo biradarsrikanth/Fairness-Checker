@@ -2,7 +2,6 @@ package com.example.fairnesstracker.engineer;
 
 import com.example.fairnesstracker.team.TeamRepository;
 
-import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.team.Team;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

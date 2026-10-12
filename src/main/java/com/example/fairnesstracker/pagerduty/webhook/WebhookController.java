@@ -1,7 +1,6 @@
 package com.example.fairnesstracker.pagerduty.webhook;
 
 import com.example.fairnesstracker.pagerduty.PagerDutyService;
-import com.example.fairnesstracker.pagerduty.webhook.HmacVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

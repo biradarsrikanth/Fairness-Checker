@@ -6,8 +6,6 @@ import com.example.fairnesstracker.team.TeamService;
 import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
-import com.example.fairnesstracker.engineer.Engineer;
-import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
 import org.springframework.stereotype.Service;

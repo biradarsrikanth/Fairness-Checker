@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.engineer;
 
-import com.example.fairnesstracker.engineer.EngineerService;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
 import jakarta.validation.Valid;

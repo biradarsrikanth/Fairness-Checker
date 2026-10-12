@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.alert.AlertService;
 import com.example.fairnesstracker.engineer.EngineerService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

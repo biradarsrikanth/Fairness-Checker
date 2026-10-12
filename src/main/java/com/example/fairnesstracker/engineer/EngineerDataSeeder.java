@@ -1,7 +1,5 @@
 package com.example.fairnesstracker.engineer;
 
-import com.example.fairnesstracker.engineer.Engineer;
-import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.team.Team;
 import com.example.fairnesstracker.team.TeamRepository;
 import jakarta.annotation.PostConstruct;

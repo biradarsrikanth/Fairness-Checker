@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.alert.AlertService;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
 import jakarta.validation.Valid;

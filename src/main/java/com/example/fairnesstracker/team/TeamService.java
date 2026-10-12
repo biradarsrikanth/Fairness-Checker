@@ -4,8 +4,6 @@ import com.example.fairnesstracker.common.exception.BadRequestException;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.engineer.EngineerRepository;
-import com.example.fairnesstracker.team.Team;
-import com.example.fairnesstracker.team.TeamRepository;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
 import org.springframework.stereotype.Service;

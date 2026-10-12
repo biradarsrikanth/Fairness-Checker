@@ -1,9 +1,5 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.alert.AlertAssignment;
-import com.example.fairnesstracker.alert.AlertAssignmentRepository;
-import com.example.fairnesstracker.alert.AlertEvent;
-import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;

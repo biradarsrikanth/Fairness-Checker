@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.alert.MonitoredService;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

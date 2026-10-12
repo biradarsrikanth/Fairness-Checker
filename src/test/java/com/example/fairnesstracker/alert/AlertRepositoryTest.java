@@ -3,7 +3,6 @@ package com.example.fairnesstracker.alert;
 import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.team.TeamRepository;
 
-import com.example.fairnesstracker.alert.AlertEvent;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.team.Team;
 import org.junit.jupiter.api.Test;

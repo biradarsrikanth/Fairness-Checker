@@ -1,7 +1,6 @@
 package com.example.fairnesstracker.oncall;
 
 import com.example.fairnesstracker.common.exception.BadRequestException;
-import com.example.fairnesstracker.oncall.OncallShiftRepository;
 import com.example.fairnesstracker.oncall.dto.OncallShiftResponse;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
