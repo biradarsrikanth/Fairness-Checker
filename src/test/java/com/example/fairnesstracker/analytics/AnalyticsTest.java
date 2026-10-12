@@ -226,8 +226,9 @@ class AnalyticsTest {
     void scoresComeFromTheScorerForTheRightTeamAndWindow() throws Exception {
         call(sreManager, "/api/v1/analytics/summary")
                 .andExpect(jsonPath("$.scores.available").value(true))
-                .andExpect(jsonPath("$.gini.value").value(0.4))
-                .andExpect(jsonPath("$.gini.previous").value(0.2))
+                // Three decimals, as the scorer gives them
+                .andExpect(jsonPath("$.gini.value").value(0.412))
+                .andExpect(jsonPath("$.gini.previous").value(0.206))
                 .andExpect(jsonPath("$.gini.changePct").value(100.0))
                 .andExpect(jsonPath("$.fairnessLabel").value("MODERATE"))
                 .andExpect(jsonPath("$.highRiskEngineers.value").value(1.0));
@@ -242,7 +243,7 @@ class AnalyticsTest {
     @Test
     void anEngineerSeesTheTeamsScoresButOnlyTheirOwnRows() throws Exception {
         call(asha, "/api/v1/analytics/snapshot")
-                .andExpect(jsonPath("$.summary.gini.value").value(0.4))
+                .andExpect(jsonPath("$.summary.gini.value").value(0.412))
                 .andExpect(jsonPath("$.summary.highRiskEngineers").isEmpty())
                 .andExpect(jsonPath("$.loadShare.length()").value(1))
                 .andExpect(jsonPath("$.loadShare[0].name").value("Asha"))
@@ -323,7 +324,7 @@ class AnalyticsTest {
         return "Bearer " + jwtService.issue(user).value();
     }
 
-    /** Answers like the scorer: Gini 0.4 this window, 0.2 before; Asha and Bala in every report. */
+    /** Answers like the scorer: Gini 0.412 this window, 0.206 before; Asha and Bala in every report. */
     static class FakeScorer extends Dispatcher {
 
         @Override
@@ -339,7 +340,7 @@ class AnalyticsTest {
                 case "/v1/scores/fairness" -> """
                         {"window": %s, "team": "SRE", "basis": "ACTIVE_ENGINEERS", "gini": %s, "label": "MODERATE",
                          "rotation_gini": null, "confidence": "LOW", "alert_count": 4, "engineers": [%s, %s]}"""
-                        .formatted(window, previous ? "0.2" : "0.4", load(1, "Asha"), load(2, "Bala"));
+                        .formatted(window, previous ? "0.206" : "0.412", load(1, "Asha"), load(2, "Bala"));
                 case "/v1/scores/burnout" -> """
                         {"window": %s, "team": "SRE", "engineers": [%s, %s]}"""
                         .formatted(window, burnout(1, "Asha", "HIGH"), burnout(2, "Bala", "LOW"));

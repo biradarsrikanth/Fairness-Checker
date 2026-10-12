@@ -117,7 +117,7 @@ public class AnalyticsService {
         String label = null;
         Kpi highRisk = null;
         if (scores.status().available()) {
-            gini = kpi(scores.current().gini(), scores.previous().gini());
+            gini = giniKpi(scores.current().gini(), scores.previous().gini());
             label = scores.current().label();
             if (!request.engineerOnly()) {
                 highRisk = kpi((double) highRisk(scores.burnout()), (double) highRisk(scores.burnoutBefore()));
@@ -327,6 +327,12 @@ public class AnalyticsService {
     private static Kpi kpi(Double value, Double previous) {
         Double change = value == null || previous == null || previous == 0 ? null : round((value - previous) / previous * 100);
         return new Kpi(round(value), round(previous), change);
+    }
+
+    // Gini lies between 0 and 1: keep the scorer's three decimals
+    private static Kpi giniKpi(double value, double previous) {
+        Double change = previous == 0 ? null : round((value - previous) / previous * 100);
+        return new Kpi(Math.round(value * 1000) / 1000.0, Math.round(previous * 1000) / 1000.0, change);
     }
 
     private static Double round(Double value) {
