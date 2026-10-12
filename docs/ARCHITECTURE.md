@@ -27,7 +27,8 @@ flowchart LR
 ## Code layout (gateway)
 
 Packages are organised by feature under `com.example.fairnesstracker`; each holds its controller, service,
-repository, entity and `dto/` records:
+repository, entity, `dto/` records and a MapStruct mapper (entity → response; requests are turned into
+entities by the services, which own the rules). Controllers only call services:
 
 | Package | Contents |
 |---|---|
@@ -86,7 +87,8 @@ erDiagram
 ```
 
 Conventions:
-- **Event times** (`triggered_at`, `starts_at`, …) are `timestamp` in **UTC**, as PagerDuty reports them.
+- **Event times** (`triggered_at`, `starts_at`, …) are `timestamp` in **UTC**, as PagerDuty reports them. The
+  API returns them as UTC instants (`"2026-09-27T18:00:00Z"`), so clients never read them as local time.
   **Audit columns** `created_at`/`updated_at` are `timestamptz`, filled by the database (default + trigger), so
   every writer gets them without application code.
 - **Integrity lives in the database:** foreign keys, `CHECK` constraints for enums and time ordering, unique

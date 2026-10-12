@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.team.dto;
 
-import com.example.fairnesstracker.team.Team;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -17,8 +16,5 @@ public final class TeamDtos {
     }
 
     public record TeamResponse(Long id, String name, String timezone) {
-        public static TeamResponse from(Team team) {
-            return new TeamResponse(team.getId(), team.getName(), team.getTimezone());
-        }
     }
 }

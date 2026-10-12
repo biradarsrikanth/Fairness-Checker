@@ -6,6 +6,7 @@ import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,27 +20,29 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final EngineerRepository engineerRepository;
+    private final TeamMapper teamMapper;
 
-    public TeamService(TeamRepository teamRepository, EngineerRepository engineerRepository) {
+    public TeamService(TeamRepository teamRepository, EngineerRepository engineerRepository, TeamMapper teamMapper) {
         this.teamRepository = teamRepository;
         this.engineerRepository = engineerRepository;
+        this.teamMapper = teamMapper;
     }
 
     @Transactional(readOnly = true)
     public List<TeamResponse> getAll() {
-        return teamRepository.findAll().stream().map(TeamResponse::from).toList();
+        return teamRepository.findAll(Sort.by("name")).stream().map(teamMapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public TeamResponse getById(Long id) {
-        return TeamResponse.from(find(id));
+        return teamMapper.toResponse(find(id));
     }
 
     public TeamResponse create(TeamRequest request) {
         if (teamRepository.findByName(request.name()).isPresent()) {
             throw duplicateName(request.name());
         }
-        return TeamResponse.from(teamRepository.save(new Team(request.name(), timezone(request.timezone()))));
+        return teamMapper.toResponse(teamRepository.save(new Team(request.name(), timezone(request.timezone()))));
     }
 
     public TeamResponse update(Long id, TeamRequest request) {
@@ -51,7 +54,7 @@ public class TeamService {
                 });
         team.setName(request.name());
         team.setTimezone(timezone(request.timezone()));
-        return TeamResponse.from(team);
+        return teamMapper.toResponse(team);
     }
 
     public void delete(Long id) {

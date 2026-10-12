@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -19,12 +20,14 @@ public class AlertService {
     private final AlertRepository alertRepository;
     private final EngineerRepository engineerRepository;
     private final AlertAssignmentRepository assignmentRepository;
+    private final AlertMapper alertMapper;
 
     public AlertService(AlertRepository alertRepository, EngineerRepository engineerRepository,
-                        AlertAssignmentRepository assignmentRepository) {
+                        AlertAssignmentRepository assignmentRepository, AlertMapper alertMapper) {
         this.alertRepository = alertRepository;
         this.engineerRepository = engineerRepository;
         this.assignmentRepository = assignmentRepository;
+        this.alertMapper = alertMapper;
     }
 
     /** A manually reported alert, paged to the given engineer now. */
@@ -39,7 +42,8 @@ public class AlertService {
         AlertEvent alert = new AlertEvent();
         alert.setEngineer(engineer);
         alert.setSeverity(request.severity());
-        alert.setTriggeredAt(LocalDateTime.now(ZoneOffset.UTC));
+        // Microseconds, as PostgreSQL stores them, so this response matches every later read
+        alert.setTriggeredAt(LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS));
         alert.setSource("MANUAL");
         alert.setPagerDutyUserId(engineer.getPagerDutyUserId());
         alert.setAssignedEngineerName(engineer.getName());
@@ -47,24 +51,24 @@ public class AlertService {
 
         assignmentRepository.save(new AlertAssignment(saved, engineer, engineer.getPagerDutyUserId(),
                 AlertAssignment.Kind.PAGED, saved.getTriggeredAt(), AlertAssignment.Source.MANUAL));
-        return AlertResponse.from(saved);
+        return alertMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public List<AlertResponse> getAllEvents(){
-        return alertRepository.findAll().stream().map(AlertResponse::from).toList();
+        return alertRepository.findAll().stream().map(alertMapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public AlertResponse getById(Long id) {
-        return AlertResponse.from(find(id));
+        return alertMapper.toResponse(find(id));
     }
 
     @Transactional(readOnly = true)
     public List<AlertResponse.Assignment> getAssignments(Long alertId) {
         find(alertId);
         return assignmentRepository.findByAlert_IdOrderByAssignedAtAsc(alertId).stream()
-                .map(AlertResponse.Assignment::from)
+                .map(alertMapper::toResponse)
                 .toList();
     }
 
@@ -76,7 +80,7 @@ public class AlertService {
 
         return alertRepository.findByEngineer_Id(engineerId)
                 .stream()
-                .map(AlertResponse::from)
+                .map(alertMapper::toResponse)
                 .toList();
     }
 
@@ -93,7 +97,7 @@ public class AlertService {
     ){
         return alertRepository.filterAlerts(engineerId, severity, from, to)
                 .stream()
-                .map(AlertResponse::from)
+                .map(alertMapper::toResponse)
                 .toList();
     }
 

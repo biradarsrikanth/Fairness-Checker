@@ -1,6 +1,5 @@
 package com.example.fairnesstracker.engineer.dto;
 
-import com.example.fairnesstracker.engineer.Engineer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,11 +19,8 @@ public final class EngineerDtos {
     ) {
     }
 
+    /** {@code team} is the team's name. */
     public record EngineerResponse(Long id, String name, String email, String team, String pagerDutyUserId,
                                    boolean active) {
-        public static EngineerResponse from(Engineer engineer) {
-            return new EngineerResponse(engineer.getId(), engineer.getName(), engineer.getEmail(),
-                    engineer.getTeam().getName(), engineer.getPagerDutyUserId(), engineer.isActive());
-        }
     }
 }

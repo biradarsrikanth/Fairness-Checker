@@ -18,39 +18,41 @@ public class EngineerService {
     private final EngineerRepository engineerRepository;
     private final AlertRepository alertRepository;
     private final TeamService teamService;
+    private final EngineerMapper engineerMapper;
 
     public EngineerService(EngineerRepository engineerRepository, AlertRepository alertRepository,
-                           TeamService teamService) {
+                           TeamService teamService, EngineerMapper engineerMapper) {
         this.engineerRepository = engineerRepository;
         this.alertRepository = alertRepository;
         this.teamService = teamService;
+        this.engineerMapper = engineerMapper;
     }
 
     //save Engineer
     public EngineerResponse saveEngineer(EngineerRequest request){
         Engineer engineer = new Engineer();
         apply(engineer, request);
-        return EngineerResponse.from(engineerRepository.save(engineer));
+        return engineerMapper.toResponse(engineerRepository.save(engineer));
     }
 
     //List all Engineers
     @Transactional(readOnly = true)
     public List<EngineerResponse> getAllEngineers(){
-        return engineerRepository.findAll().stream().map(EngineerResponse::from).toList();
+        return engineerRepository.findAll().stream().map(engineerMapper::toResponse).toList();
     }
 
 
     //get one Engineer by id
     @Transactional(readOnly = true)
     public EngineerResponse getById(Long id){
-        return EngineerResponse.from(find(id));
+        return engineerMapper.toResponse(find(id));
     }
 
     //update Engineer
     public EngineerResponse updateEngineer(Long id, EngineerRequest request){
         Engineer existingEngineer = find(id);
         apply(existingEngineer, request);
-        return EngineerResponse.from(existingEngineer);
+        return engineerMapper.toResponse(existingEngineer);
     }
 
     // Engineers with history must be deactivated instead, or their alerts would lose their owner

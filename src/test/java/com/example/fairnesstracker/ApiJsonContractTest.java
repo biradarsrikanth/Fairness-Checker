@@ -32,7 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Pins the exact JSON the API returns: field names, null handling and date formats. Framework upgrades
+ * Pins the exact JSON the API returns: field names, null handling and date formats (UTC instants with a
+ * trailing Z, so clients never mistake them for local time). Framework upgrades
  * (e.g. a new Jackson major version) must not change it by accident; deliberate changes update the
  * expected JSON here in the same commit.
  */
@@ -132,8 +133,8 @@ class ApiJsonContractTest {
                 .andExpect(content().json("""
                         {"id": %d, "engineerId": %d, "engineerName": "Asha", "team": "Contract SRE",
                          "severity": "P2", "status": "resolved", "urgency": "high",
-                         "triggeredAt": "2026-09-27T18:00:00", "acknowledgedAt": "2026-09-27T18:05:30",
-                         "resolvedAt": "2026-09-27T19:00:00", "pagerDutyIncidentId": "QCONTRACT1",
+                         "triggeredAt": "2026-09-27T18:00:00Z", "acknowledgedAt": "2026-09-27T18:05:30Z",
+                         "resolvedAt": "2026-09-27T19:00:00Z", "pagerDutyIncidentId": "QCONTRACT1",
                          "incidentNumber": 4242, "title": "Database failover", "serviceName": "Payments API",
                          "assignedEngineerName": "Asha", "source": "API_SYNC"}
                         """.formatted(resolved.getId(), asha.getId()), JsonCompareMode.STRICT));
@@ -145,7 +146,7 @@ class ApiJsonContractTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
                         {"id": %d, "engineerId": null, "engineerName": null, "team": null, "severity": null,
-                         "status": "triggered", "urgency": null, "triggeredAt": "2026-09-28T03:15:00",
+                         "status": "triggered", "urgency": null, "triggeredAt": "2026-09-28T03:15:00Z",
                          "acknowledgedAt": null, "resolvedAt": null, "pagerDutyIncidentId": null,
                          "incidentNumber": null, "title": null, "serviceName": null,
                          "assignedEngineerName": null, "source": null}
@@ -158,9 +159,9 @@ class ApiJsonContractTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
                         [{"kind": "PAGED", "engineerId": %d, "engineerName": "Asha",
-                          "pagerDutyUserId": "PCONTRACT1", "assignedAt": "2026-09-27T18:00:00", "source": "LOG"},
+                          "pagerDutyUserId": "PCONTRACT1", "assignedAt": "2026-09-27T18:00:00Z", "source": "LOG"},
                          {"kind": "ESCALATED", "engineerId": null, "engineerName": null,
-                          "pagerDutyUserId": "PEXTERNAL", "assignedAt": "2026-09-27T18:15:00", "source": "LOG"}]
+                          "pagerDutyUserId": "PEXTERNAL", "assignedAt": "2026-09-27T18:15:00Z", "source": "LOG"}]
                         """.formatted(asha.getId()), JsonCompareMode.STRICT));
     }
 
@@ -172,7 +173,7 @@ class ApiJsonContractTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
                         [{"id": %d, "engineerId": %d, "engineerName": "Asha", "escalationLevel": 1,
-                          "startsAt": "2026-09-01T03:30:00", "endsAt": "2026-09-08T03:30:00"}]
+                          "startsAt": "2026-09-01T03:30:00Z", "endsAt": "2026-09-08T03:30:00Z"}]
                         """.formatted(shift.getId(), asha.getId()), JsonCompareMode.STRICT));
     }
 
