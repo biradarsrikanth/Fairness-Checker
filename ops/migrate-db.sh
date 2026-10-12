@@ -7,7 +7,7 @@
 #
 # Migrations run inside the gateway jar itself (web server and PagerDuty sync off), so they use exactly
 # the Flyway version and settings production uses, and Hibernate then validates the migrated schema.
-# The jar exits when it has started; nothing is served.
+# The jar exits as soon as it has started (app.exit-after-startup); nothing is served.
 #
 # Usage (from the repository root, after `sh mvnw -B package`):
 #   ops/migrate-db.sh                 # database settings from .env
@@ -69,7 +69,7 @@ migrate() {
   # From an empty directory, so no .env is picked up: everything comes from this environment
   (cd "$WORK" && env AZURE_DB_URL="$url" AZURE_DB_USERNAME="$user" AZURE_DB_PASSWORD="$password" \
       PAGERDUTY_SYNC_ENABLED=false PAGERDUTY_API_TOKEN="${PAGERDUTY_API_TOKEN:-unused}" \
-      "$JAVA" -jar "$JAR" --spring.main.web-application-type=none > "$log" 2>&1) || {
+      "$JAVA" -jar "$JAR" --spring.main.web-application-type=none --app.exit-after-startup=true > "$log" 2>&1) || {
     grep -E "ERROR|Caused by|Migration .* failed" "$log" | head -20 >&2
     die "migration failed; full log: $log"
   }
