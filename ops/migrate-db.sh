@@ -36,8 +36,11 @@ JAR="$(realpath "$JAR")"
 
 # .env, read as data (never sourced); real environment variables win, as they do for the app
 if [ -f .env ]; then
-  while IFS='=' read -r key value; do
-    [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]] || continue
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    key="${line%%=*}" value="${line#*=}"
+    # Surrounding quotes aren't part of the value
+    [[ "$value" =~ ^\"(.*)\"$ || "$value" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
     [ -n "${!key+set}" ] || export "$key=$value"
   done < <(grep -E '^[A-Z_][A-Z0-9_]*=' .env)
 fi
