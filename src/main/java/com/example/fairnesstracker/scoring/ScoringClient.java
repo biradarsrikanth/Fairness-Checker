@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.scoring;
 
+import com.example.fairnesstracker.common.exception.ApiError;
 import com.example.fairnesstracker.common.exception.ErrorCode;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
@@ -10,15 +11,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.codec.DecodingException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import reactor.util.retry.Retry;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -95,10 +100,12 @@ public class ScoringClient {
     }
 
     private ScoringServiceException fromUpstreamStatus(int upstream, String body) {
-        String detail = detail(body);
+        UpstreamProblem problem = problem(body, upstream);
+        String detail = problem.detail();
         return switch (upstream) {
             case 404 -> new ScoringServiceException(ErrorCode.NOT_FOUND, upstream, detail);
-            case 400, 422 -> new ScoringServiceException(ErrorCode.VALIDATION_FAILED, upstream, detail);
+            case 400, 422 -> new ScoringServiceException(ErrorCode.VALIDATION_FAILED, upstream, detail,
+                    problem.errors());
             case 401, 403 -> {
                 log.error("Scorer rejected our API key; check SCORER_API_KEY on both services");
                 yield new ScoringServiceException(ErrorCode.UPSTREAM_ERROR, upstream,
@@ -145,16 +152,30 @@ public class ScoringClient {
         return false;
     }
 
-    // FastAPI errors look like {"detail": "..."}; fall back to the raw body
-    private String detail(String body) {
+    /** What the scorer said: its problem details' detail and field errors (RFC 9457, like ours). */
+    private record UpstreamProblem(String detail, List<ApiError.FieldError> errors) {
+    }
+
+    // Falls back to the raw body (not JSON) or the status phrase (empty body)
+    private UpstreamProblem problem(String body, int status) {
         try {
-            JsonNode detail = objectMapper.readTree(body).path("detail");
-            if (detail.isString()) return detail.asString();
-            if (!detail.isMissingNode()) return truncate(detail.toString());
-        } catch (Exception ignored) {
+            JsonNode root = objectMapper.readTree(body);
+            List<ApiError.FieldError> errors = new ArrayList<>();
+            for (JsonNode error : root.path("errors")) {
+                JsonNode field = error.path("field");
+                errors.add(new ApiError.FieldError(field.isString() ? field.asString() : null,
+                        truncate(error.path("message").asString(""))));
+            }
+            JsonNode detail = root.path("detail");
+            if (detail.isString() && !detail.asString().isBlank()) {
+                return new UpstreamProblem(truncate(detail.asString()), errors);
+            }
+        } catch (JacksonException ignored) {
             // not JSON
         }
-        return truncate(body);
+        if (!body.isBlank()) return new UpstreamProblem(truncate(body), List.of());
+        HttpStatus resolved = HttpStatus.resolve(status);
+        return new UpstreamProblem(resolved != null ? resolved.getReasonPhrase() : "Error " + status, List.of());
     }
 
     private static String truncate(String s) {

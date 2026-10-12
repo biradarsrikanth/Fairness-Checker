@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.scoring;
 
 import com.example.fairnesstracker.common.config.HttpClientConfig;
+import com.example.fairnesstracker.common.exception.ApiError;
 import com.example.fairnesstracker.common.exception.ErrorCode;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
@@ -126,6 +127,36 @@ class ScoringClientTest {
     }
 
     @Test
+    void passesTheScorersFieldErrorsThrough() {
+        server.enqueue(problem(422, """
+                {"type": "about:blank", "title": "Unprocessable Content", "status": 422,
+                 "detail": "days: Input should be greater than or equal to 1", "instance": "/v1/scores/fairness",
+                 "code": "VALIDATION_FAILED",
+                 "errors": [{"field": "days", "message": "Input should be greater than or equal to 1"}],
+                 "request_id": "abc", "timestamp": "2026-10-12T16:00:00Z"}
+                """));
+
+        assertThatThrownBy(() -> client.fairness(new ScoreQuery(null, null, null, null)))
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+                    assertThat(e.getMessage()).isEqualTo("days: Input should be greater than or equal to 1");
+                    assertThat(e.getErrors()).containsExactly(
+                            new ApiError.FieldError("days", "Input should be greater than or equal to 1"));
+                });
+    }
+
+    @Test
+    void emptyErrorBodyFallsBackToTheStatusPhrase() {
+        server.enqueue(new MockResponse().setResponseCode(404));
+
+        assertThatThrownBy(() -> client.engineer(9, new ScoreQuery(null, null, null, null)))
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(ErrorCode.NOT_FOUND);
+                    assertThat(e.getMessage()).isEqualTo("Not Found");
+                });
+    }
+
+    @Test
     void rejectedApiKeyIsAGatewayError() {
         server.enqueue(json(401, "{\"detail\": \"Invalid or missing API key\"}"));
 
@@ -150,6 +181,10 @@ class ScoringClientTest {
 
         assertThatThrownBy(() -> client.fairness(new ScoreQuery(null, null, null, null)))
                 .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_UNAVAILABLE));
+    }
+
+    private static MockResponse problem(int status, String body) {
+        return json(status, body).setHeader("Content-Type", "application/problem+json");
     }
 
     private static MockResponse json(int status, String body) {
