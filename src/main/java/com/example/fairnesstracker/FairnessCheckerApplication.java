@@ -1,5 +1,6 @@
 package com.example.fairnesstracker;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -18,6 +19,7 @@ public class FairnessCheckerApplication {
         SpringApplication.run(FairnessCheckerApplication.class, args);
     }
 
+    @Hidden
     @GetMapping("/")
     public String healthCheck() {
         return "Fairness Checker API Service is running!";

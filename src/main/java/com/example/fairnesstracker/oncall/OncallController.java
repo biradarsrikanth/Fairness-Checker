@@ -2,6 +2,7 @@ package com.example.fairnesstracker.oncall;
 
 import com.example.fairnesstracker.common.exception.BadRequestException;
 import com.example.fairnesstracker.oncall.dto.OncallShiftResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Tag(name = "On-call", description = "On-call shifts synced from PagerDuty")
 @RestController
 @RequestMapping("/api/v1/oncall")
 public class OncallController {

@@ -2,6 +2,7 @@ package com.example.fairnesstracker.alert;
 
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
+@Tag(name = "Alerts", description = "Stored alerts and their paging history")
 @RestController
 @RequestMapping("/api/v1/alerts")
 public class AlertEventController {

@@ -4,6 +4,7 @@ import com.example.fairnesstracker.pagerduty.PagerDutyService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
+@Tag(name = "Webhooks", description = "PagerDuty webhook receiver (HMAC-signed)")
 @RestController
 // Not under /api/v1: PagerDuty is configured with this exact URL
 @RequestMapping("/api/webhook")

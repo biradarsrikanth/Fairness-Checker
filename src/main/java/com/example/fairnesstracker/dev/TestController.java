@@ -5,6 +5,7 @@ import com.example.fairnesstracker.alert.AlertEvent;
 import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,7 @@ import java.time.ZoneOffset;
 
 // Creates fake alerts: only available with the "dev" profile, never in production
 @Profile("dev")
+@Tag(name = "Dev", description = "Development helpers (dev profile only)")
 @RestController
 @RequestMapping("/api/v1/dev")
 public class TestController {

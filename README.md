@@ -29,6 +29,8 @@ Needs JDK 21.
 
 ## API
 
+Interactive docs: <http://localhost:8080/swagger-ui.html> (OpenAPI spec at `/v3/api-docs`; `API_DOCS_ENABLED=false` hides both).
+
 | Area | Routes |
 |---|---|
 | Teams | `GET/POST /api/v1/teams`, `GET/PUT/DELETE /api/v1/teams/{id}` |

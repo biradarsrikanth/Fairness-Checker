@@ -3,6 +3,7 @@ package com.example.fairnesstracker.pagerduty;
 import com.example.fairnesstracker.pagerduty.dto.SyncResult;
 import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "PagerDuty", description = "Live PagerDuty data and manual syncs")
 @RestController
 @RequestMapping("/api/v1/pagerduty")
 public class PagerDutyController {

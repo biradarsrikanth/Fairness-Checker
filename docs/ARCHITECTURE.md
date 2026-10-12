@@ -170,6 +170,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `SEED_DEMO_DATA` | gateway | no | `false` | Demo engineers in an empty database |
 | `JPA_SHOW_SQL` | gateway | no | `false` | Log SQL (debugging only) |
 | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | gateway | no | plain text | `ecs` for JSON logs |
+| `API_DOCS_ENABLED` | gateway | no | `true` | Serve the OpenAPI spec (`/v3/api-docs`) and Swagger UI (`/swagger-ui.html`) |
 | `TEAM_TIMEZONE` / `CACHE_TTL_SECONDS` | scorer | no | `Asia/Kolkata` / `60` | Timezone for `start`/`end` dates (night/weekend use each team's own timezone); result cache |
 | `LOG_FORMAT` / `LOG_LEVEL` | scorer | no | `text` (`json` in Docker) / `INFO` | Logging |
 

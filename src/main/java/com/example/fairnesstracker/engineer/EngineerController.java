@@ -2,6 +2,7 @@ package com.example.fairnesstracker.engineer;
 
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
+@Tag(name = "Engineers", description = "Engineers who go on call")
 @RestController
 @RequestMapping("/api/v1/engineers")
 public class EngineerController {
