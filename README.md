@@ -8,7 +8,7 @@ Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Run with Docker
 
 ```bash
-cp .env.example .env              # database, PagerDuty and SCORER_API_KEY (same key as the scorer)
+cp .env.example .env              # database, PagerDuty, JWT_SECRET and SCORER_API_KEY (same key as the scorer)
 docker network create fairness-net   # once per machine; shared with fairneess-scorer
 docker compose up --build
 ```
