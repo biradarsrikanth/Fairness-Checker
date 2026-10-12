@@ -8,9 +8,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -27,6 +36,7 @@ class SecurityChainTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private JwtService jwtService;
+    @Autowired private JwtEncoder jwtEncoder;
 
     @Test
     void protectedRoutesNeedAToken() throws Exception {
@@ -46,6 +56,21 @@ class SecurityChainTest {
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"invalid_token\""))
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
                 .andExpect(jsonPath("$.detail").value("Access token is invalid or expired; refresh it or sign in again"));
+    }
+
+    @Test
+    void anExpiredTokenIsRejected() throws Exception {
+        // Signed with our key and otherwise valid, but it expired a minute (plus the allowed skew) ago
+        Instant past = Instant.now().minus(Duration.ofMinutes(20));
+        JwtClaimsSet claims = JwtClaimsSet.builder().issuer("fairness-checker").audience(List.of("fairness-web"))
+                .subject("7").issuedAt(past).expiresAt(Instant.now().minus(Duration.ofSeconds(90)))
+                .claim(JwtService.ROLE_CLAIM, "ADMIN").build();
+        String expired = jwtEncoder.encode(JwtEncoderParameters.from(
+                JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), claims)).getTokenValue();
+
+        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, "Bearer " + expired))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"invalid_token\""));
     }
 
     @Test
