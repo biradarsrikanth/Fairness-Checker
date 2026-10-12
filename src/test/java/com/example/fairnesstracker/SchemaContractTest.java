@@ -87,6 +87,48 @@ class SchemaContractTest {
                 + "VALUES (1, 'PAGED', now(), 'LOG')", DataIntegrityViolationException.class);
     }
 
+    @Test
+    void authConstraintsRejectBadData() {
+        long team = team("SRE", "Asia/Kolkata");
+        long engineer = engineer("asha@example.com", team);
+        long admin = user("admin@example.com", "ADMIN", null);
+        user("asha.login@example.com", "ENGINEER", engineer);
+
+        // Logins are unique regardless of case
+        assertRejected(userSql("ADMIN@example.com", "ADMIN", null), DuplicateKeyException.class);
+        assertRejected(userSql("x@example.com", "OWNER", null), DataIntegrityViolationException.class);
+        // An ENGINEER login must point at an engineer, and only one login per engineer
+        assertRejected(userSql("x@example.com", "ENGINEER", null), DataIntegrityViolationException.class);
+        assertRejected(userSql("x@example.com", "MANAGER", engineer), DuplicateKeyException.class);
+        // An engineer with a login can't be deleted out from under it
+        assertRejected("DELETE FROM engineer_data WHERE id = " + engineer, DataIntegrityViolationException.class);
+
+        jdbc.update("INSERT INTO refresh_token (user_id, token_hash, family_id, expires_at) "
+                + "VALUES (?, repeat('a', 64), gen_random_uuid(), now() + interval '7 days')", admin);
+        assertRejected("INSERT INTO refresh_token (user_id, token_hash, family_id, expires_at) VALUES ("
+                + admin + ", repeat('a', 64), gen_random_uuid(), now() + interval '7 days')", DuplicateKeyException.class);
+        assertRejected("INSERT INTO refresh_token (user_id, token_hash, family_id, expires_at) VALUES ("
+                + admin + ", 'not-a-hash', gen_random_uuid(), now() + interval '7 days')",
+                DataIntegrityViolationException.class);
+        assertRejected("INSERT INTO refresh_token (user_id, token_hash, family_id, expires_at) VALUES ("
+                + admin + ", repeat('b', 64), gen_random_uuid(), now() - interval '1 second')",
+                DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingAUserRemovesItsTokensAndTeamAccess() {
+        long team = team("SRE", "Asia/Kolkata");
+        long manager = user("manager@example.com", "MANAGER", null);
+        jdbc.update("INSERT INTO user_team_access (user_id, team_id) VALUES (?, ?)", manager, team);
+        jdbc.update("INSERT INTO refresh_token (user_id, token_hash, family_id, expires_at) "
+                + "VALUES (?, repeat('c', 64), gen_random_uuid(), now() + interval '7 days')", manager);
+
+        jdbc.update("DELETE FROM app_user WHERE id = ?", manager);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_team_access", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM refresh_token", Long.class)).isZero();
+    }
+
     // PostgreSQL aborts the whole transaction on an error; a savepoint keeps the test's transaction usable
     private void assertRejected(String sql, Class<? extends Exception> expected) {
         jdbc.execute("SAVEPOINT check_constraint");
@@ -109,6 +151,15 @@ class SchemaContractTest {
     private long engineer(String email, long team) {
         return jdbc.queryForObject("INSERT INTO engineer_data (email, name, team_id) VALUES (?, 'x', ?) RETURNING id",
                 Long.class, email, team);
+    }
+
+    private long user(String email, String role, Long engineer) {
+        return jdbc.queryForObject(userSql(email, role, engineer) + " RETURNING id", Long.class);
+    }
+
+    private static String userSql(String email, String role, Long engineer) {
+        return "INSERT INTO app_user (email, password_hash, full_name, role, engineer_id) VALUES ('%s', '{noop}x', 'x', '%s', %s)"
+                .formatted(email, role, engineer);
     }
 
     private List<String> columns(String view) {
