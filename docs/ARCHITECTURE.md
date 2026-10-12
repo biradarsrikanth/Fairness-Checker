@@ -225,6 +225,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `SCORER_API_KEY` | both | **yes** (≥ 32 chars, same value on both) | none | Gateway → scorer authentication |
 | `JWT_SECRET` | gateway | **yes** (≥ 32 chars) | none | Signs access tokens (HS256); changing it signs everyone out |
 | `JWT_ISSUER` / `JWT_AUDIENCE` / `JWT_ACCESS_TOKEN_TTL` | gateway | no | `fairness-checker` / `fairness-web` / `15m` | Access token claims and lifetime (1 minute to 1 hour) |
+| `REFRESH_TOKEN_TTL` / `REFRESH_TOKEN_REUSE_GRACE` | gateway | no | `7d` / `10s` | Session length without use; how soon after a refresh the old token may be presented again (two tabs) before it counts as theft and ends the session |
 | `PYTHON_SCORER_URL` | gateway | in Azure | `http://127.0.0.1:8000` | Where the scorer runs |
 | `SCORER_CONNECT_TIMEOUT` / `SCORER_RESPONSE_TIMEOUT` / `SCORER_MAX_RETRIES` | gateway | no | `2s` / `10s` / `2` | Scorer call resilience |
 | `PAGERDUTY_CONNECT_TIMEOUT` / `PAGERDUTY_RESPONSE_TIMEOUT` | gateway | no | `5s` / `30s` | PagerDuty call timeouts |

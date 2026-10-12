@@ -16,6 +16,10 @@ public enum ErrorCode {
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST),
     /** Any other client error the API can't describe more precisely. */
     BAD_REQUEST(HttpStatus.BAD_REQUEST),
+    /** The refresh token is missing, unknown, expired or revoked: sign in again. */
+    REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED),
+    /** An already-used refresh token was presented, so every session from that sign-in was ended. */
+    REFRESH_TOKEN_REUSED(HttpStatus.UNAUTHORIZED),
     /** The resource or route doesn't exist. */
     NOT_FOUND(HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED),
