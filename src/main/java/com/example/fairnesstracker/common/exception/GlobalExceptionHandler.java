@@ -15,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -57,7 +59,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex.getCode().status().is5xxServerError()) {
             log.warn("{}: {}", ex.getCode(), ex.getMessage());
         }
-        return respond(ex.getCode().status(), ex.getCode(), ex.getMessage(), ex.getErrors(), request);
+        return ResponseEntity.status(ex.getCode().status())
+                .headers(ex.getHeaders())
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(ApiError.of(ex.getCode().status(), ex.getCode(), ex.getMessage(), ex.getErrors(), request));
+    }
+
+    // @PreAuthorize denials are thrown inside the controller call, so they arrive here rather than at the
+    // security filter chain's AccessDeniedHandler; without this the catch-all below would make them 500s
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return respond(ErrorCode.FORBIDDEN, ForbiddenException.DEFAULT_DETAIL, request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return respond(ErrorCode.UNAUTHENTICATED, "Sign in to use this endpoint", request);
     }
 
     // A constraint rejected the write. Services check the usual cases first, so this is mostly a race with a

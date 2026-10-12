@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -48,7 +49,9 @@ class ActuatorEndpointsTest {
 
     @Test
     void doesNotExposeOtherEndpoints() throws Exception {
-        mvc.perform(get("/actuator/env")).andExpect(status().isNotFound());
-        mvc.perform(get("/actuator/beans")).andExpect(status().isNotFound());
+        // Not public, and not there even for an admin
+        mvc.perform(get("/actuator/env")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/actuator/env").with(user("admin").roles("ADMIN"))).andExpect(status().isNotFound());
+        mvc.perform(get("/actuator/beans").with(user("admin").roles("ADMIN"))).andExpect(status().isNotFound());
     }
 }

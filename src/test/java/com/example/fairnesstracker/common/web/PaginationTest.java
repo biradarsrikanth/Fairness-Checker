@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.common.web;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import com.example.fairnesstracker.alert.AlertAssignmentRepository;
 import com.example.fairnesstracker.alert.AlertEvent;
 import com.example.fairnesstracker.alert.AlertRepository;
@@ -41,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
 class PaginationTest {
 
     @Autowired private MockMvc mvc;

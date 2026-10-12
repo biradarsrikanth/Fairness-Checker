@@ -16,6 +16,20 @@ public enum ErrorCode {
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST),
     /** Any other client error the API can't describe more precisely. */
     BAD_REQUEST(HttpStatus.BAD_REQUEST),
+    /** No access token, or it's invalid or expired: refresh it, or sign in again. */
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED),
+    /** Wrong email or password. Doesn't say which. */
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED),
+    /** Signed in, but this role or this user may not do that or see that data. */
+    FORBIDDEN(HttpStatus.FORBIDDEN),
+    /** The password must be changed first (POST /api/v1/auth/change-password). */
+    PASSWORD_CHANGE_REQUIRED(HttpStatus.FORBIDDEN),
+    /** An admin disabled this account. */
+    ACCOUNT_DISABLED(HttpStatus.FORBIDDEN),
+    /** Too many failed sign-ins; locked for a while (see Retry-After). */
+    ACCOUNT_LOCKED(HttpStatus.LOCKED),
+    /** Too many requests from this client; retry after the Retry-After header's seconds. */
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS),
     /** The refresh token is missing, unknown, expired or revoked: sign in again. */
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED),
     /** An already-used refresh token was presented, so every session from that sign-in was ended. */
@@ -49,6 +63,8 @@ public enum ErrorCode {
     /** The code for a status raised by Spring itself (unknown route, wrong method, ...). */
     public static ErrorCode forStatus(HttpStatusCode status) {
         return switch (status.value()) {
+            case 401 -> UNAUTHENTICATED;
+            case 403 -> FORBIDDEN;
             case 404 -> NOT_FOUND;
             case 405 -> METHOD_NOT_ALLOWED;
             case 406 -> NOT_ACCEPTABLE;

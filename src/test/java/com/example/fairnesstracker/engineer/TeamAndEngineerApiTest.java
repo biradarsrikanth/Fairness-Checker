@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.engineer;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import com.example.fairnesstracker.user.AppUser;
 import com.example.fairnesstracker.user.AppUserRepository;
 import com.example.fairnesstracker.user.Role;
@@ -25,6 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
 class TeamAndEngineerApiTest {
 
     @Autowired

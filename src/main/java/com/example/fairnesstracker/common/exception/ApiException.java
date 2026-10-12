@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.common.exception;
 
+import org.springframework.http.HttpHeaders;
+
 import java.util.List;
 
 /**
@@ -27,5 +29,10 @@ public abstract class ApiException extends RuntimeException {
 
     public List<ApiError.FieldError> getErrors() {
         return errors;
+    }
+
+    /** Extra response headers, e.g. Retry-After. */
+    public HttpHeaders getHeaders() {
+        return HttpHeaders.EMPTY;
     }
 }

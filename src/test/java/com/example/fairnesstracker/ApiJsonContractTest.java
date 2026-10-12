@@ -1,5 +1,6 @@
 package com.example.fairnesstracker;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import com.example.fairnesstracker.alert.AlertAssignment;
 import com.example.fairnesstracker.alert.AlertAssignmentRepository;
 import com.example.fairnesstracker.alert.AlertEvent;
@@ -41,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
 class ApiJsonContractTest {
 
     @Autowired private MockMvc mvc;

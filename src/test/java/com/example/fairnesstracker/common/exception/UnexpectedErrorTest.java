@@ -1,5 +1,8 @@
 package com.example.fairnesstracker.common.exception;
 
+import org.springframework.security.test.context.support.WithMockUser;
+import com.example.fairnesstracker.support.SliceSecurity;
+import org.springframework.context.annotation.Import;
 import com.example.fairnesstracker.team.TeamController;
 import com.example.fairnesstracker.team.TeamService;
 import org.junit.jupiter.api.Test;
@@ -21,6 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // A bug must not leak internals (hosts, credentials, SQL) to the caller
 @WebMvcTest(TeamController.class)
 @ActiveProfiles("test")
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
+@Import(SliceSecurity.class)
 class UnexpectedErrorTest {
 
     @Autowired

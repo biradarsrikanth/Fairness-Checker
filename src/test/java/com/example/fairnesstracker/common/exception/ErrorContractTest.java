@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.common.exception;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
@@ -34,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
 class ErrorContractTest {
 
     @Autowired private MockMvc mvc;

@@ -1,5 +1,8 @@
 package com.example.fairnesstracker.engineer;
 
+import org.springframework.security.test.context.support.WithMockUser;
+import com.example.fairnesstracker.support.SliceSecurity;
+import org.springframework.context.annotation.Import;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -14,6 +17,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(EngineerController.class)
 @ActiveProfiles("test")
+// Endpoint behaviour, signed in as an admin; access rules are covered by the security tests
+@WithMockUser(roles = "ADMIN")
+@Import(SliceSecurity.class)
 public class EngineerControllerTest {
 
     @Autowired
