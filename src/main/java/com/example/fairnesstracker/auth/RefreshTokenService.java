@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.auth;
 
+import com.example.fairnesstracker.audit.AuditAction;
+import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.user.AppUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,12 +48,15 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository repository;
     private final RefreshTokenProperties properties;
+    private final AuditService audit;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    public RefreshTokenService(RefreshTokenRepository repository, RefreshTokenProperties properties, Clock clock) {
+    public RefreshTokenService(RefreshTokenRepository repository, RefreshTokenProperties properties,
+                               AuditService audit, Clock clock) {
         this.repository = repository;
         this.properties = properties;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -87,6 +93,8 @@ public class RefreshTokenService {
             int revoked = repository.revokeFamily(token.getFamilyId(), now);
             log.warn("Refresh token reuse for user {}: revoked family {} ({} active tokens)",
                     user.getId(), token.getFamilyId(), revoked);
+            audit.recordFor(user, AuditAction.REFRESH_TOKEN_REUSED,
+                    Map.of("family", token.getFamilyId().toString(), "tokensRevoked", revoked));
             throw InvalidRefreshTokenException.reused();
         }
         if (token.isExpiredAt(now)) {
@@ -98,10 +106,17 @@ public class RefreshTokenService {
         return new Rotation(user, replacement.issued());
     }
 
-    /** Signing out: ends the session the token belongs to. Unknown or missing tokens are ignored. */
+    /**
+     * Signing out: ends the session the token belongs to and returns whose it was. Unknown or missing tokens
+     * are ignored.
+     */
     @Transactional
-    public void revokeFamily(String presented) {
-        find(presented).ifPresent(token -> repository.revokeFamily(token.getFamilyId(), clock.instant()));
+    public Optional<AppUser> revokeFamily(String presented) {
+        return find(presented).map(token -> {
+            AppUser user = token.getUser();
+            repository.revokeFamily(token.getFamilyId(), clock.instant());
+            return user;
+        });
     }
 
     /** Ends every session of a user, e.g. after a password change or when the user is disabled. */

@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.auth;
 
+import com.example.fairnesstracker.audit.AuditAction;
+import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.auth.RefreshTokenService.IssuedRefreshToken;
 import com.example.fairnesstracker.auth.RefreshTokenService.Rotation;
 import com.example.fairnesstracker.auth.dto.AuthDtos.TeamRef;
@@ -23,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /** Signing in and out, refreshing, and changing the password. Each successful step returns a new session. */
@@ -40,19 +43,21 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokens;
     private final LoginProperties loginProperties;
+    private final AuditService audit;
     private final Clock clock;
     // Checked when the email is unknown, so that takes as long as a wrong password
     private final String unknownUserHash;
 
     public AuthService(AppUserRepository users, TeamRepository teams, PasswordEncoder passwordEncoder,
                        JwtService jwtService, RefreshTokenService refreshTokens, LoginProperties loginProperties,
-                       Clock clock) {
+                       AuditService audit, Clock clock) {
         this.users = users;
         this.teams = teams;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
         this.loginProperties = loginProperties;
+        this.audit = audit;
         this.clock = clock;
         this.unknownUserHash = passwordEncoder.encode("unknown-user-placeholder");
     }
@@ -63,17 +68,20 @@ public class AuthService {
         AppUser user = users.findByEmail(email).orElse(null);
         if (user == null) {
             passwordEncoder.matches(password, unknownUserHash);
+            audit.recordUnknownUser(email, AuditAction.LOGIN_FAILED, Map.of("reason", "UNKNOWN_EMAIL"));
             throw AuthenticationFailedException.invalidCredentials();
         }
         Instant now = clock.instant();
         // While locked, the password isn't even checked: guessing can't continue in the meantime
         if (user.getLockedUntil() != null && now.isBefore(user.getLockedUntil())) {
+            audit.recordFor(user, AuditAction.LOGIN_FAILED, Map.of("reason", "LOCKED"));
             throw AuthenticationFailedException.locked(Duration.between(now, user.getLockedUntil()));
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw recordFailure(user, now);
         }
         if (!user.isEnabled()) {
+            audit.recordFor(user, AuditAction.LOGIN_FAILED, Map.of("reason", "DISABLED"));
             throw AuthenticationFailedException.disabled();
         }
 
@@ -85,6 +93,7 @@ public class AuthService {
             user.setPassword(passwordEncoder.encode(password), user.getPasswordChangedAt());
         }
         log.info("User {} signed in", user.getId());
+        audit.recordFor(user, AuditAction.LOGIN_SUCCEEDED, Map.of());
         return session(user, refreshTokens.issue(user, client));
     }
 
@@ -96,7 +105,8 @@ public class AuthService {
 
     @Transactional
     public void logout(String refreshToken) {
-        refreshTokens.revokeFamily(refreshToken);
+        refreshTokens.revokeFamily(refreshToken)
+                .ifPresent(user -> audit.recordFor(user, AuditAction.LOGOUT, Map.of()));
     }
 
     @Transactional(readOnly = true)
@@ -122,17 +132,20 @@ public class AuthService {
         user.setMustChangePassword(false);
         int ended = refreshTokens.revokeAll(user);
         log.info("User {} changed their password; ended {} sessions", user.getId(), ended);
+        audit.recordFor(user, AuditAction.PASSWORD_CHANGED, Map.of("sessionsEnded", ended));
         return session(user, refreshTokens.issue(user, client));
     }
 
     // Counts the failure, locking the account at the limit; returns what to throw
     private AuthenticationFailedException recordFailure(AppUser user, Instant now) {
         int failures = user.getFailedLoginCount() + 1;
+        audit.recordFor(user, AuditAction.LOGIN_FAILED, Map.of("reason", "WRONG_PASSWORD", "failuresInARow", failures));
         if (failures >= loginProperties.maxFailedAttempts()) {
             user.setFailedLoginCount(0);
             user.setLockedUntil(now.plus(loginProperties.lockDuration()));
             log.warn("User {} locked for {} after {} failed sign-ins", user.getId(), loginProperties.lockDuration(),
                     failures);
+            audit.recordFor(user, AuditAction.ACCOUNT_LOCKED, Map.of("until", user.getLockedUntil().toString()));
             return AuthenticationFailedException.locked(loginProperties.lockDuration());
         }
         user.setFailedLoginCount(failures);

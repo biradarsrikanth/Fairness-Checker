@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.user;
 
+import com.example.fairnesstracker.audit.AuditAction;
+import com.example.fairnesstracker.audit.AuditService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -8,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.Map;
 
 /**
  * There's no sign-up: admins create users. The first admin comes from ADMIN_BOOTSTRAP_EMAIL and
@@ -21,13 +24,15 @@ public class AdminBootstrap implements ApplicationRunner {
     private final AppUserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final AdminBootstrapProperties properties;
+    private final AuditService audit;
     private final Clock clock;
 
     public AdminBootstrap(AppUserRepository users, PasswordEncoder passwordEncoder,
-                          AdminBootstrapProperties properties, Clock clock) {
+                          AdminBootstrapProperties properties, AuditService audit, Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.properties = properties;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -47,6 +52,8 @@ public class AdminBootstrap implements ApplicationRunner {
         admin.setMustChangePassword(true);
         try {
             users.saveAndFlush(admin);
+            audit.recordSystem(AuditAction.USER_CREATED, "USER", admin.getId(),
+                    Map.of("email", admin.getEmail(), "role", Role.ADMIN.name(), "source", "ADMIN_BOOTSTRAP"));
             log.info("Created the first admin, {}; they must choose a new password at first sign-in. "
                     + "ADMIN_BOOTSTRAP_PASSWORD can now be removed", admin.getEmail());
         } catch (DataIntegrityViolationException e) {

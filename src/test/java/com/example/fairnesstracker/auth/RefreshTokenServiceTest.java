@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.auth;
 
+import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.auth.RefreshTokenService.IssuedRefreshToken;
 import com.example.fairnesstracker.auth.RefreshTokenService.Rotation;
 import com.example.fairnesstracker.common.exception.ErrorCode;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ActiveProfiles("test")
 @DataJpaTest
-@Import({RefreshTokenService.class, RefreshTokenServiceTest.Config.class})
+@Import({RefreshTokenService.class, AuditService.class, RefreshTokenServiceTest.Config.class})
 class RefreshTokenServiceTest {
 
     static final Instant START = Instant.parse("2026-10-12T10:00:00Z");

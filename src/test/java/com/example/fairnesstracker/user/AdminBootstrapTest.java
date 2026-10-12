@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.user;
 
+import com.example.fairnesstracker.audit.AuditLogRepository;
+import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.security.PasswordConfig;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -30,6 +32,7 @@ class AdminBootstrapTest {
             new AdminBootstrapProperties("Priya@Example.com", "correct-horse-battery", "Priya");
 
     @Autowired private AppUserRepository users;
+    @Autowired private AuditLogRepository auditLog;
 
     @Test
     void createsTheFirstAdminWhenThereAreNoUsers() {
@@ -44,6 +47,12 @@ class AdminBootstrapTest {
         assertThat(admin.getPasswordChangedAt()).isEqualTo(NOW);
         assertThat(admin.getPasswordHash()).startsWith("{bcrypt}$2a$12$");
         assertThat(ENCODER.matches("correct-horse-battery", admin.getPasswordHash())).isTrue();
+        assertThat(auditLog.findAll()).singleElement().satisfies(entry -> {
+            assertThat(entry.getAction()).isEqualTo(com.example.fairnesstracker.audit.AuditAction.USER_CREATED);
+            assertThat(entry.getUserId()).isNull();
+            assertThat(entry.getEntityId()).isEqualTo(admin.getId().toString());
+            assertThat(entry.getDetails()).containsEntry("source", "ADMIN_BOOTSTRAP");
+        });
     }
 
     @Test
@@ -86,7 +95,8 @@ class AdminBootstrapTest {
         when(racing.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("ux_app_user_email"));
 
         assertThatNoException().isThrownBy(() ->
-                new AdminBootstrap(racing, ENCODER, CONFIGURED, Clock.fixed(NOW, ZoneOffset.UTC)).run(null));
+                new AdminBootstrap(racing, ENCODER, CONFIGURED, mock(AuditService.class), Clock.fixed(NOW, ZoneOffset.UTC))
+                        .run(null));
     }
 
     @Test
@@ -106,6 +116,7 @@ class AdminBootstrapTest {
     }
 
     private AdminBootstrap bootstrap(AdminBootstrapProperties properties) {
-        return new AdminBootstrap(users, ENCODER, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        return new AdminBootstrap(users, ENCODER, properties, new AuditService(auditLog, clock), clock);
     }
 }
