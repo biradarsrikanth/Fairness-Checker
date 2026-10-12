@@ -8,6 +8,7 @@ import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
 import com.example.fairnesstracker.engineer.dto.EngineerFilter;
+import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.team.TeamService;
 import com.example.fairnesstracker.user.AppUserRepository;
 import org.springframework.data.domain.Page;
@@ -50,10 +51,14 @@ public class EngineerService {
         return engineerMapper.toResponse(engineerRepository.save(engineer));
     }
 
-    /** One page of engineers, optionally of one team and/or only (in)active ones; by name unless sorted otherwise. */
+    /**
+     * One page of the engineers {@code scope} may see, optionally of one team and/or only (in)active ones; by
+     * name unless sorted otherwise.
+     */
     @Transactional(readOnly = true)
-    public PageResponse<EngineerResponse> list(EngineerFilter filter, Pageable pageable) {
+    public PageResponse<EngineerResponse> list(EngineerFilter filter, Pageable pageable, DataScope scope) {
         List<Specification<Engineer>> conditions = new ArrayList<>();
+        conditions.add(scope.restrict(engineer -> engineer));
         if (filter.team() != null && !filter.team().isBlank()) {
             conditions.add((engineer, query, cb) -> cb.equal(engineer.get("team").get("name"), filter.team().strip()));
         }

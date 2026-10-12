@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.alert;
 
 import com.example.fairnesstracker.alert.dto.AlertFilter;
+import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
@@ -63,13 +64,14 @@ public class AlertService {
         return alertMapper.toResponse(saved);
     }
 
-    /** One page of alerts matching every filter that is set; newest first unless sorted otherwise. */
+    /** One page of the alerts {@code scope} may see that match every filter set; newest first by default. */
     @Transactional(readOnly = true)
-    public PageResponse<AlertResponse> list(AlertFilter filter, Pageable pageable) {
+    public PageResponse<AlertResponse> list(AlertFilter filter, Pageable pageable, DataScope scope) {
         if (filter.start() != null && filter.end() != null && filter.end().isBefore(filter.start())) {
             throw ValidationException.onField("end", "must be on or after start");
         }
-        Page<AlertEvent> page = alertRepository.findAll(AlertSpecifications.matching(filter),
+        Page<AlertEvent> page = alertRepository.findAll(
+                AlertSpecifications.matching(filter).and(scope.restrict(alert -> alert.get("engineer"))),
                 Sorting.restrict(pageable, SORTABLE));
         return PageResponse.from(page.map(alertMapper::toResponse));
     }

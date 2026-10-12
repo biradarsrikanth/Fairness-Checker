@@ -191,8 +191,29 @@ never reach a controller.
 - Database: the scorer should log in as a read-only role limited to the two views
   (`ops/sql/create_scorer_readonly_role.sql`).
 - Webhooks: HMAC-SHA256 with constant-time comparison.
-- **Open item:** the gateway's own `/api/**` routes have no authentication yet. Put them behind Microsoft
-  Entra ID (OAuth2 resource server) or at minimum an API gateway before exposing write routes publicly.
+- Gateway: every route needs an access token except `/`, `/error`, health/info/prometheus, the PagerDuty
+  webhook, `POST /api/v1/auth/{login,refresh,logout}` and the API docs. Security errors are `ApiError`s
+  like any other (401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, ...).
+- Tokens: the gateway issues its own. Access token: HS256 JWT (`sub` = user id, `email`, `role`), 15 minutes,
+  kept in memory by the client. Refresh token: opaque, single-use, rotated on every refresh, stored as a
+  SHA-256 hash, sent as an httpOnly `SameSite=Strict` cookie limited to `/api/v1/auth`; reusing a rotated
+  one ends that sign-in everywhere. No sessions, so no CSRF tokens. An access token can't be revoked: a
+  disabled user or changed password takes effect when it expires (refresh is refused at once).
+- Sign-in: BCrypt (cost 12); 5 wrong passwords lock the account for 15 minutes; 10 attempts per minute per
+  client IP (in memory, per instance). There's no sign-up; the first admin comes from `ADMIN_BOOTSTRAP_*`
+  and must change the password before anything else.
+- Access (`AccessPolicy`): roles are checked with `@PreAuthorize`, data with the user's scope, read from the
+  database on each request so changes apply at once:
+
+  | | ADMIN | MANAGER | ENGINEER |
+  |---|---|---|---|
+  | Alerts, engineers, on-call shifts | all | their teams' | their own |
+  | Fairness and time-of-day scores | all teams | their teams | own team, only their own row |
+  | Burnout list; one engineer's scores | all | their teams | no; only their own |
+  | Change engineers, alerts; edit a team | yes | in their teams | no |
+  | Create/delete teams, delete alerts, PagerDuty operations | yes | no | no |
+
+  Lists are filtered rather than refused; a single record outside the scope is a 403.
 
 ## Observability
 
@@ -227,6 +248,9 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `JWT_ISSUER` / `JWT_AUDIENCE` / `JWT_ACCESS_TOKEN_TTL` | gateway | no | `fairness-checker` / `fairness-web` / `15m` | Access token claims and lifetime (1 minute to 1 hour) |
 | `REFRESH_TOKEN_TTL` / `REFRESH_TOKEN_REUSE_GRACE` | gateway | no | `7d` / `10s` | Session length without use; how soon after a refresh the old token may be presented again (two tabs) before it counts as theft and ends the session |
 | `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` / `ADMIN_BOOTSTRAP_NAME` | gateway | both or neither (password ≥ 12 chars) | none / none / `Administrator` | First admin, created while there are no users; must change the password at first sign-in |
+| `LOGIN_MAX_FAILED_ATTEMPTS` / `LOGIN_LOCK_DURATION` / `LOGIN_ATTEMPTS_PER_IP_PER_MINUTE` | gateway | no | `5` / `15m` / `10` | Account lockout and per-IP sign-in limit |
+| `REFRESH_COOKIE_SECURE` | gateway | no | `true` | Set `false` only for plain HTTP on a host other than localhost |
+| `FORWARD_HEADERS_STRATEGY` | gateway | no | `native` | Trust `X-Forwarded-*` from private-network proxies (client IP for rate limits) |
 | `PYTHON_SCORER_URL` | gateway | in Azure | `http://127.0.0.1:8000` | Where the scorer runs |
 | `SCORER_CONNECT_TIMEOUT` / `SCORER_RESPONSE_TIMEOUT` / `SCORER_MAX_RETRIES` | gateway | no | `2s` / `10s` / `2` | Scorer call resilience |
 | `PAGERDUTY_CONNECT_TIMEOUT` / `PAGERDUTY_RESPONSE_TIMEOUT` | gateway | no | `5s` / `30s` | PagerDuty call timeouts |
@@ -241,6 +265,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 
 ## Known limitations
 
-- Single gateway instance assumed: the scheduled sync has no distributed lock (add ShedLock before scaling out).
+- Single gateway instance assumed: the scheduled sync has no distributed lock (add ShedLock before scaling out), and
+  the sign-in rate limit is counted per instance.
 - The scorer loads the full window into memory; fine up to ~10⁵ alerts per window. Beyond that, move
   aggregation into SQL.

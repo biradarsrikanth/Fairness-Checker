@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.engineer;
 
+import com.example.fairnesstracker.security.AccessPolicy;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
@@ -23,12 +25,17 @@ public class EngineerController {
 
     private final EngineerService engineerService;
 
-    public EngineerController(EngineerService engineerService) {
+    private final AccessPolicy access;
+
+    public EngineerController(EngineerService engineerService, AccessPolicy access) {
         this.engineerService = engineerService;
+        this.access = access;
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<EngineerResponse> saveEngineer(@Valid @RequestBody EngineerRequest request){
+        access.requireManagedTeamNamed(request.team());
         return ResponseEntity.status(HttpStatus.CREATED).body(engineerService.saveEngineer(request));
     }
 
@@ -36,22 +43,29 @@ public class EngineerController {
     @GetMapping
     public PageResponse<EngineerResponse> list(@Valid @ParameterObject EngineerFilter filter,
                                                @ParameterObject @SortDefault("name") Pageable pageable) {
-        return engineerService.list(filter, pageable);
+        return engineerService.list(filter, pageable, access.scope());
     }
 
 
     @GetMapping("/{id}")
     public EngineerResponse getById(@PathVariable Long id){
+        access.requireEngineer(id);
         return engineerService.getById(id);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public EngineerResponse updateEngineer(@PathVariable Long id, @Valid @RequestBody EngineerRequest request){
+        // Both the engineer's current team and the one they move to must be the manager's
+        access.requireManagedEngineer(id);
+        access.requireManagedTeamNamed(request.team());
         return engineerService.updateEngineer(id, request);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Void> deleteEngineer(@PathVariable Long id) {
+        access.requireManagedEngineer(id);
         engineerService.deleteEngineer(id);
         return ResponseEntity.noContent().build();
     }

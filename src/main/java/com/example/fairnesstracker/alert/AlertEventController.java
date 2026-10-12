@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.alert;
 
+import com.example.fairnesstracker.security.AccessPolicy;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.fairnesstracker.alert.dto.AlertFilter;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
@@ -30,12 +32,17 @@ public class AlertEventController {
 
     private final AlertService alertService;
 
-    public AlertEventController(AlertService alertService) {
+    private final AccessPolicy access;
+
+    public AlertEventController(AlertService alertService, AccessPolicy access) {
         this.alertService = alertService;
+        this.access = access;
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<AlertResponse> saveAlert(@Valid @RequestBody AlertRequest request) {
+        access.requireManagedEngineer(request.engineerId());
         return ResponseEntity.status(HttpStatus.CREATED).body(alertService.saveAlert(request));
     }
 
@@ -46,21 +53,24 @@ public class AlertEventController {
     public PageResponse<AlertResponse> list(
             @Valid @ParameterObject AlertFilter filter,
             @ParameterObject @SortDefault(sort = "triggeredAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return alertService.list(filter, pageable);
+        return alertService.list(filter, pageable, access.scope());
     }
 
     @GetMapping("/{id}")
     public AlertResponse getById(@PathVariable Long id) {
+        access.requireAlert(id);
         return alertService.getById(id);
     }
 
     // Paging history: who was paged, escalated to or reassigned, in order
     @GetMapping("/{id}/assignments")
     public List<AlertResponse.Assignment> getAssignments(@PathVariable Long id) {
+        access.requireAlert(id);
         return alertService.getAssignments(id);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
         alertService.deleteEvent(id);
         return ResponseEntity.noContent().build();

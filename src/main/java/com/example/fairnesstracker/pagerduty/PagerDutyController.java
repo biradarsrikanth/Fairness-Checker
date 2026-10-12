@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.pagerduty;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.fairnesstracker.pagerduty.dto.SyncResult;
 import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;
@@ -15,7 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "PagerDuty", description = "Live PagerDuty data and manual syncs")
+@Tag(name = "PagerDuty", description = "Live PagerDuty data and manual syncs (admins only)")
+@PreAuthorize("hasRole('ADMIN')")
 @RestController
 @RequestMapping("/api/v1/pagerduty")
 public class PagerDutyController {

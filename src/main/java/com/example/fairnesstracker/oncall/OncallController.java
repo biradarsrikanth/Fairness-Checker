@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.oncall;
 
+import com.example.fairnesstracker.security.AccessPolicy;
 import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.oncall.dto.OncallShiftResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,8 +24,11 @@ public class OncallController {
 
     private final OncallService oncallService;
 
-    public OncallController(OncallService oncallService) {
+    private final AccessPolicy access;
+
+    public OncallController(OncallService oncallService, AccessPolicy access) {
         this.oncallService = oncallService;
+        this.access = access;
     }
 
     @Operation(summary = "List on-call shifts",
@@ -36,6 +40,6 @@ public class OncallController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam(required = false) @Positive Long engineerId,
             @ParameterObject @SortDefault("startsAt") Pageable pageable) {
-        return oncallService.shifts(start, end, engineerId, pageable);
+        return oncallService.shifts(start, end, engineerId, pageable, access.scope());
     }
 }

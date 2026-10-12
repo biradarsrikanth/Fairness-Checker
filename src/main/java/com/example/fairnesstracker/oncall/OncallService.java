@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.oncall;
 
+import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.common.web.Sorting;
@@ -31,9 +32,9 @@ public class OncallService {
         this.shiftMapper = shiftMapper;
     }
 
-    /** Shifts overlapping [start, end] (UTC dates, inclusive), optionally for one engineer. */
+    /** Shifts {@code scope} may see overlapping [start, end] (UTC dates, inclusive), optionally for one engineer. */
     public PageResponse<OncallShiftResponse> shifts(LocalDate start, LocalDate end, Long engineerId,
-                                                    Pageable pageable) {
+                                                    Pageable pageable, DataScope scope) {
         if (end.isBefore(start) || ChronoUnit.DAYS.between(start, end) > MAX_DAYS) {
             throw ValidationException.onField("end", "must be on or after start, at most " + MAX_DAYS + " days later");
         }
@@ -48,6 +49,7 @@ public class OncallService {
         if (engineerId != null) {
             conditions.add((shift, query, cb) -> cb.equal(shift.get("engineer").get("id"), engineerId));
         }
+        conditions.add(scope.restrict(shift -> shift.get("engineer")));
         return PageResponse.from(shiftRepository.findAll(Specification.allOf(conditions),
                 Sorting.restrict(pageable, SORTABLE)).map(shiftMapper::toResponse));
     }

@@ -31,6 +31,12 @@ public final class Scores {
     public record FairnessReport(Window window, String team, String basis, double gini, String label,
                                  Double rotationGini, String confidence, int alertCount,
                                  List<EngineerLoad> engineers) {
+
+        /** The team's figures, with only this engineer's row: peers' loads aren't shown to an engineer. */
+        public FairnessReport onlyEngineer(long engineerId) {
+            return new FairnessReport(window, team, basis, gini, label, rotationGini, confidence, alertCount,
+                    engineers.stream().filter(e -> e.engineerId() == engineerId).toList());
+        }
     }
 
     public record BurnoutComponents(double exposure, double relativeLoad, double trend) {
@@ -53,6 +59,11 @@ public final class Scores {
     }
 
     public record TimeOfDayReport(Window window, String team, List<EngineerTimeOfDay> engineers) {
+
+        public TimeOfDayReport onlyEngineer(long engineerId) {
+            return new TimeOfDayReport(window, team,
+                    engineers.stream().filter(e -> e.engineerId() == engineerId).toList());
+        }
     }
 
     public record EngineerReport(Window window, EngineerRef engineer, boolean active, BurnoutScore burnout,
