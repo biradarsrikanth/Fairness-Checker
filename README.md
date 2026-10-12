@@ -54,6 +54,7 @@ in responses are UTC instants. Errors are `application/problem+json` with a stab
 | On-call | `GET /api/v1/oncall?start=&end=&engineerId=` (paged) |
 | Scores | `GET /api/v1/scores/{fairness,burnout,timeofday}`, `GET /api/v1/scores/engineers/{id}` (`days` or `start`/`end`, optional `team`) |
 | PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
+| Analytics | `GET /api/v1/analytics/{summary,alerts/timeseries,heatmap,services/top,trend,snapshot}?team=&start=&end=&granularity=day\|week\|month` (dates in `TEAM_TIMEZONE`, default the last 30 days; only what you may see) |
 | Auth | `POST /api/v1/auth/{login,refresh,logout,change-password}`, `GET /api/v1/auth/me` |
 | Users (admins) | `GET/POST /api/v1/users`, `GET/PUT/DELETE /api/v1/users/{id}`, `PUT /api/v1/users/{id}/teams`, `POST /api/v1/users/{id}/{reset-password,unlock}` |
 | Audit (admins) | `GET /api/v1/audit?action=&userId=&start=&end=` (paged) |

@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.common.config;
 
+import com.example.fairnesstracker.analytics.AnalyticsProperties;
 import com.example.fairnesstracker.auth.LoginProperties;
 import com.example.fairnesstracker.auth.RefreshCookieProperties;
 import com.example.fairnesstracker.auth.RefreshTokenProperties;
@@ -25,7 +26,7 @@ public class StartupChecks {
             JwtProperties jwt, RefreshTokenProperties refreshTokens, RefreshCookieProperties refreshCookie,
             LoginProperties login,
             AdminBootstrapProperties bootstrapAdmin,
-            ScorerProperties scorer, PagerDutyProperties pagerDuty) {
+            ScorerProperties scorer, PagerDutyProperties pagerDuty, AnalyticsProperties analytics) {
         return configuration -> {
         };
     }

@@ -72,6 +72,18 @@ Authorization: Bearer {{token}}
 GET {{host}}/api/v1/scores/engineers/1?days=90
 Authorization: Bearer {{token}}
 
+### Analytics: everything the page shows, for one team and month
+GET {{host}}/api/v1/analytics/snapshot?team=SRE&start=2026-09-01&end=2026-09-30
+Authorization: Bearer {{token}}
+
+### Analytics: KPIs against the previous 30 days
+GET {{host}}/api/v1/analytics/summary
+Authorization: Bearer {{token}}
+
+### Analytics: weekly alert counts by severity for 2016
+GET {{host}}/api/v1/analytics/alerts/timeseries?start=2016-01-01&end=2016-12-31&granularity=week
+Authorization: Bearer {{token}}
+
 ### Users (admins only)
 GET {{host}}/api/v1/users?role=MANAGER
 Authorization: Bearer {{token}}
