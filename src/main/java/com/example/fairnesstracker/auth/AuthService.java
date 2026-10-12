@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -38,21 +39,25 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokens;
+    private final LoginProperties loginProperties;
     private final Clock clock;
     // Checked when the email is unknown, so that takes as long as a wrong password
     private final String unknownUserHash;
 
     public AuthService(AppUserRepository users, TeamRepository teams, PasswordEncoder passwordEncoder,
-                       JwtService jwtService, RefreshTokenService refreshTokens, Clock clock) {
+                       JwtService jwtService, RefreshTokenService refreshTokens, LoginProperties loginProperties,
+                       Clock clock) {
         this.users = users;
         this.teams = teams;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
+        this.loginProperties = loginProperties;
         this.clock = clock;
         this.unknownUserHash = passwordEncoder.encode("unknown-user-placeholder");
     }
 
+    /** Failed-attempt counters and locks are saved even though the attempt fails, hence noRollbackFor. */
     @Transactional(noRollbackFor = AuthenticationFailedException.class)
     public Session login(String email, String password, ClientInfo client) {
         AppUser user = users.findByEmail(email).orElse(null);
@@ -60,14 +65,20 @@ public class AuthService {
             passwordEncoder.matches(password, unknownUserHash);
             throw AuthenticationFailedException.invalidCredentials();
         }
+        Instant now = clock.instant();
+        // While locked, the password isn't even checked: guessing can't continue in the meantime
+        if (user.getLockedUntil() != null && now.isBefore(user.getLockedUntil())) {
+            throw AuthenticationFailedException.locked(Duration.between(now, user.getLockedUntil()));
+        }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw AuthenticationFailedException.invalidCredentials();
+            throw recordFailure(user, now);
         }
         if (!user.isEnabled()) {
             throw AuthenticationFailedException.disabled();
         }
 
-        Instant now = clock.instant();
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
         user.setLastLoginAt(now);
         // Hashes made with older settings are replaced while the plain password is at hand
         if (passwordEncoder.upgradeEncoding(user.getPasswordHash())) {
@@ -112,6 +123,20 @@ public class AuthService {
         int ended = refreshTokens.revokeAll(user);
         log.info("User {} changed their password; ended {} sessions", user.getId(), ended);
         return session(user, refreshTokens.issue(user, client));
+    }
+
+    // Counts the failure, locking the account at the limit; returns what to throw
+    private AuthenticationFailedException recordFailure(AppUser user, Instant now) {
+        int failures = user.getFailedLoginCount() + 1;
+        if (failures >= loginProperties.maxFailedAttempts()) {
+            user.setFailedLoginCount(0);
+            user.setLockedUntil(now.plus(loginProperties.lockDuration()));
+            log.warn("User {} locked for {} after {} failed sign-ins", user.getId(), loginProperties.lockDuration(),
+                    failures);
+            return AuthenticationFailedException.locked(loginProperties.lockDuration());
+        }
+        user.setFailedLoginCount(failures);
+        return AuthenticationFailedException.invalidCredentials();
     }
 
     private AppUser find(long userId) {

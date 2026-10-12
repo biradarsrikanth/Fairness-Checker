@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.common.config;
 
+import com.example.fairnesstracker.auth.LoginProperties;
 import com.example.fairnesstracker.auth.RefreshCookieProperties;
 import com.example.fairnesstracker.auth.RefreshTokenProperties;
 import com.example.fairnesstracker.pagerduty.PagerDutyProperties;
@@ -22,6 +23,7 @@ public class StartupChecks {
     @Bean
     public FlywayConfigurationCustomizer validateSettingsBeforeMigrating(
             JwtProperties jwt, RefreshTokenProperties refreshTokens, RefreshCookieProperties refreshCookie,
+            LoginProperties login,
             AdminBootstrapProperties bootstrapAdmin,
             ScorerProperties scorer, PagerDutyProperties pagerDuty) {
         return configuration -> {

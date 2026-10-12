@@ -31,16 +31,21 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshCookies cookies;
+    private final LoginRateLimiter rateLimiter;
 
-    public AuthController(AuthService authService, RefreshCookies cookies) {
+    public AuthController(AuthService authService, RefreshCookies cookies, LoginRateLimiter rateLimiter) {
         this.authService = authService;
         this.cookies = cookies;
+        this.rateLimiter = rateLimiter;
     }
 
-    @Operation(summary = "Sign in", description = "Returns an access token and sets the refresh cookie.")
+    @Operation(summary = "Sign in", description = "Returns an access token and sets the refresh cookie. "
+            + "By default, 5 wrong passwords in a row lock the account for 15 minutes (423), and a client IP "
+            + "gets at most 10 attempts per minute (429). Both come with Retry-After.")
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request,
                                                HttpServletRequest httpRequest) {
+        rateLimiter.check(httpRequest.getRemoteAddr());
         return respond(authService.login(request.email(), request.password(), client(httpRequest)));
     }
 
