@@ -5,7 +5,10 @@ import com.example.fairnesstracker.auth.dto.AuthDtos.ChangePasswordRequest;
 import com.example.fairnesstracker.auth.dto.AuthDtos.LoginRequest;
 import com.example.fairnesstracker.auth.dto.AuthDtos.TokenResponse;
 import com.example.fairnesstracker.auth.dto.AuthDtos.UserResponse;
+import com.example.fairnesstracker.common.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -42,6 +45,7 @@ public class AuthController {
     @Operation(summary = "Sign in", description = "Returns an access token and sets the refresh cookie. "
             + "By default, 5 wrong passwords in a row lock the account for 15 minutes (423), and a client IP "
             + "gets at most 10 attempts per minute (429). Both come with Retry-After.")
+    @SecurityRequirements
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request,
                                                HttpServletRequest httpRequest) {
@@ -51,6 +55,7 @@ public class AuthController {
 
     @Operation(summary = "Get a new access token",
             description = "Uses the refresh cookie, which is replaced. On failure the cookie is cleared: sign in again.")
+    @SecurityRequirement(name = OpenApiConfig.REFRESH_COOKIE)
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
@@ -63,6 +68,7 @@ public class AuthController {
     }
 
     @Operation(summary = "Sign out", description = "Ends this session (every token from this sign-in) and clears the cookie.")
+    @SecurityRequirement(name = OpenApiConfig.REFRESH_COOKIE)
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         authService.logout(cookies.read(request));

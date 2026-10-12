@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.pagerduty.webhook;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import com.example.fairnesstracker.pagerduty.PagerDutyService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,8 @@ public class WebhookController {
     @Value("${pagerduty.webhook.secret}")
     private String webhookSecret;
 
+    // PagerDuty signs its requests (X-PagerDuty-Signature) instead of sending a token
+    @SecurityRequirements
     @PostMapping("/pagerduty")
     public ResponseEntity<String> handleWebhook(
             @RequestBody(required = false) String rawPayload,

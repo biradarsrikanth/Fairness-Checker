@@ -1,53 +1,131 @@
-# Manual requests for the IntelliJ / VS Code HTTP client. The full, current list is in Swagger UI:
-# http://localhost:8080/swagger-ui.html
+# Manual requests for the VS Code REST Client extension (humao.rest-client). The full, current list is in
+# Swagger UI: http://localhost:8080/swagger-ui.html (sign in there with Authorize).
+#
+# Run "Sign in" first: the requests below reuse its access token (valid 15 minutes; run it again, or
+# "Refresh", when calls start answering 401). The refresh cookie is kept by the client between requests.
 @host = http://localhost:8080
+@email = admin@example.com
+@password = change-me
+@token = {{login.response.body.$.accessToken}}
+
+### Sign in
+# @name login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{"email": "{{email}}", "password": "{{password}}"}
+
+### Who am I (and which teams can I see)
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+### Change the password (required after the first sign-in; returns a new token: sign in again to reuse it here)
+POST {{host}}/api/v1/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"currentPassword": "{{password}}", "newPassword": "a-new-password-of-12+-characters"}
+
+### Refresh: a new access token from the refresh cookie
+POST {{host}}/api/v1/auth/refresh
+
+### Sign out (ends this session and clears the cookie)
+POST {{host}}/api/v1/auth/logout
 
 ### Teams
 GET {{host}}/api/v1/teams
+Authorization: Bearer {{token}}
 
 ### Engineers of one team, by name
 GET {{host}}/api/v1/engineers?team=SRE&active=true
+Authorization: Bearer {{token}}
 
 ### Newest alerts (paged)
 GET {{host}}/api/v1/alerts?page=0&size=20
+Authorization: Bearer {{token}}
 
 ### Alerts filtered by engineer, severity and date, oldest first
 GET {{host}}/api/v1/alerts?engineerId=1&severity=P1&start=2016-01-01&end=2016-12-31&sort=triggeredAt,asc
+Authorization: Bearer {{token}}
 
 ### Paging history of one alert
 GET {{host}}/api/v1/alerts/1/assignments
+Authorization: Bearer {{token}}
 
 ### On-call shifts
 GET {{host}}/api/v1/oncall?start=2026-09-01&end=2026-09-30
+Authorization: Bearer {{token}}
 
-### Fairness (2016 data needs an explicit window)
+### Fairness (2016 data needs an explicit window; non-admins get their own team)
 GET {{host}}/api/v1/scores/fairness?start=2016-01-01&end=2016-12-31
+Authorization: Bearer {{token}}
 
-### Burnout
+### Burnout (admins and managers)
 GET {{host}}/api/v1/scores/burnout?days=30
+Authorization: Bearer {{token}}
 
 ### Time of day
 GET {{host}}/api/v1/scores/timeofday?days=30
+Authorization: Bearer {{token}}
 
 ### All scores for one engineer
 GET {{host}}/api/v1/scores/engineers/1?days=90
+Authorization: Bearer {{token}}
 
-### PagerDuty incidents (live, not stored)
+### Users (admins only)
+GET {{host}}/api/v1/users?role=MANAGER
+Authorization: Bearer {{token}}
+
+### Create a manager of team 1 (the response has a one-time password)
+POST {{host}}/api/v1/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"email": "manager@example.com", "fullName": "Team Manager", "role": "MANAGER", "teamIds": [1]}
+
+### Create an engineer login for engineer 1
+POST {{host}}/api/v1/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"email": "engineer@example.com", "fullName": "On-call Engineer", "role": "ENGINEER", "engineerId": 1}
+
+### Set the teams a manager can see
+PUT {{host}}/api/v1/users/2/teams
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"teamIds": [1, 2]}
+
+### Reset a user's password (new one-time password, sessions ended)
+POST {{host}}/api/v1/users/2/reset-password
+Authorization: Bearer {{token}}
+
+### Audit log: recent failed sign-ins (admins only)
+GET {{host}}/api/v1/audit?action=LOGIN_FAILED
+Authorization: Bearer {{token}}
+
+### PagerDuty incidents (live, not stored; admins only)
 GET {{host}}/api/v1/pagerduty/incidents?limit=25
+Authorization: Bearer {{token}}
 
 ### PagerDuty users
 GET {{host}}/api/v1/pagerduty/users
+Authorization: Bearer {{token}}
 
 ### Sync incidents now
 POST {{host}}/api/v1/pagerduty/sync
+Authorization: Bearer {{token}}
 
 ### Backfill a year of on-call shifts
 POST {{host}}/api/v1/pagerduty/sync/oncalls?days=365
+Authorization: Bearer {{token}}
 
 ### Resolve an incident as a PagerDuty user
 POST {{host}}/api/v1/pagerduty/resolve/INCIDENT_ID?email=engineer@example.com
+Authorization: Bearer {{token}}
 
-### Webhook ping (unversioned path; real events need a valid X-PagerDuty-Signature)
+### Webhook ping (unversioned path, no token; real events need a valid X-PagerDuty-Signature)
 POST {{host}}/api/webhook/pagerduty
 Content-Type: application/json
 

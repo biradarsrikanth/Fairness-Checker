@@ -33,6 +33,14 @@ Needs JDK 21.
 
 Interactive docs: <http://localhost:8080/swagger-ui.html> (OpenAPI spec at `/v3/api-docs`; `API_DOCS_ENABLED=false` hides both).
 
+**Signing in.** Every route except sign-in, the webhook and health needs an access token:
+`POST /api/v1/auth/login` with `{"email", "password"}` returns `accessToken` (send it as
+`Authorization: Bearer ...`, valid 15 minutes) and sets an httpOnly refresh cookie; `POST /api/v1/auth/refresh`
+gets a new access token. In Swagger UI, sign in with the login operation, then paste the token under
+**Authorize**. `Requests.http` does this for the VS Code REST Client. The first admin comes from
+`ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD` and must change that password before anything else; admins
+create everyone else. What each role may see is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
+
 Paged lists take `page` (from 0), `size` (default 20, at most 100) and `sort=field,asc|desc`, and return
 `{content, page, size, totalElements, totalPages}`. Dates (`start`, `end`) are UTC days, both inclusive; times
 in responses are UTC instants. Errors are `application/problem+json` with a stable `code` (see
@@ -46,4 +54,7 @@ in responses are UTC instants. Errors are `application/problem+json` with a stab
 | On-call | `GET /api/v1/oncall?start=&end=&engineerId=` (paged) |
 | Scores | `GET /api/v1/scores/{fairness,burnout,timeofday}`, `GET /api/v1/scores/engineers/{id}` (`days` or `start`/`end`, optional `team`) |
 | PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
+| Auth | `POST /api/v1/auth/{login,refresh,logout,change-password}`, `GET /api/v1/auth/me` |
+| Users (admins) | `GET/POST /api/v1/users`, `GET/PUT/DELETE /api/v1/users/{id}`, `PUT /api/v1/users/{id}/teams`, `POST /api/v1/users/{id}/{reset-password,unlock}` |
+| Audit (admins) | `GET /api/v1/audit?action=&userId=&start=&end=` (paged) |
 | Operations | `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus` |

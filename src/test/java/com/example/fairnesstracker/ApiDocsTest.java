@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // The OpenAPI spec is what the frontend generates its API client from, so its shape is a contract
@@ -69,6 +70,19 @@ class ApiDocsTest {
                 "type", "title", "status", "detail", "instance", "code", "errors", "requestId", "timestamp");
         assertThat(spec.at("/paths/~1api~1v1~1teams/get/responses/default/content/application~1problem+json/schema/$ref")
                 .asString()).isEqualTo("#/components/schemas/ApiError");
+    }
+
+    @Test
+    void documentsBearerAuthExceptOnThePublicOperations() throws Exception {
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.refreshCookie.in").value("cookie"))
+                .andExpect(jsonPath("$.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/webhook/pagerduty'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/refresh'].post.security[0].refreshCookie").exists())
+                // Everything else inherits the Bearer requirement
+                .andExpect(jsonPath("$.paths['/api/v1/teams'].get.security").doesNotExist());
     }
 
     @Test
