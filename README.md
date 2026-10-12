@@ -14,7 +14,9 @@ docker compose up --build
 ```
 
 - The compose file doesn't run a database; it connects to the one in `AZURE_DB_*`. On startup, Flyway applies
-  any pending migrations from `src/main/resources/db/migration` to that database.
+  any pending migrations from `src/main/resources/db/migration` to that database. For a shared database, apply
+  them first with `ops/migrate-db.sh`: it backs the database up, rehearses the migrations on a restored copy,
+  and only then migrates the real one.
 - Start the scorer from its own repo on the same network and scores work at
   `http://localhost:8080/api/v1/scores/fairness`; without it, score endpoints return 503 and the rest works.
 
