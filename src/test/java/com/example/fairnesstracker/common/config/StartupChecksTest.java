@@ -4,10 +4,23 @@ import com.example.fairnesstracker.FairnessCheckerApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
+import org.springframework.context.ConfigurableApplicationContext;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StartupChecksTest {
+
+    @Test
+    void theAppStartsWithoutAWebServerAsTheMigrationScriptRunsIt() {
+        // ops/migrate-db.sh: --spring.main.web-application-type=none (and app.exit-after-startup, handled in main)
+        SpringApplication app = new SpringApplication(FairnessCheckerApplication.class);
+
+        try (ConfigurableApplicationContext context = app.run("--spring.profiles.active=test",
+                "--spring.main.web-application-type=none")) {
+            assertThat(context.isRunning()).isTrue();
+        }
+    }
 
     @Test
     void badSettingsStopTheAppBeforeFlywayTouchesTheDatabase() {

@@ -70,8 +70,10 @@ migrate() {
   (cd "$WORK" && env AZURE_DB_URL="$url" AZURE_DB_USERNAME="$user" AZURE_DB_PASSWORD="$password" \
       PAGERDUTY_SYNC_ENABLED=false PAGERDUTY_API_TOKEN="${PAGERDUTY_API_TOKEN:-unused}" \
       "$JAVA" -jar "$JAR" --spring.main.web-application-type=none --app.exit-after-startup=true > "$log" 2>&1) || {
-    grep -E "ERROR|Caused by|Migration .* failed" "$log" | head -20 >&2
-    die "migration failed; full log: $log"
+    # Spring's own explanation if there is one, else the errors; the log is kept next to the backups
+    { sed -n '/^Description:/,/^Action:/p' "$log"; grep -E "Migration .* failed|Caused by" "$log" | tail -5; } >&2
+    cp "$log" "$BACKUP_DIR/" 2>/dev/null || true
+    die "migration failed; full log: $BACKUP_DIR/$(basename "$log")"
   }
   grep -E "Successfully applied|Schema .* is up to date|Migrating schema" "$log" | sed 's/^.*: /   /'
 }
@@ -115,7 +117,7 @@ for _ in $(seq 30); do docker exec "$REHEARSAL" pg_isready -q -U postgres && bre
 docker exec "$REHEARSAL" pg_restore -U postgres -d postgres --clean --if-exists --exit-on-error --no-owner --no-acl "/backup/$(basename "$BACKUP")"
 rehearsal_psql() { docker exec "$REHEARSAL" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
 rehearsal_psql -c "$COUNTS_SQL" | LC_ALL=C sort > "$WORK/before.txt"
-migrate "jdbc:postgresql://127.0.0.1:$REHEARSAL_PORT/postgres" postgres rehearsal "$WORK/rehearsal.log"
+migrate "jdbc:postgresql://127.0.0.1:$REHEARSAL_PORT/postgres" postgres rehearsal "$WORK/rehearsal-$(date +%Y%m%d-%H%M%S).log"
 rehearsal_psql -c "$COUNTS_SQL" | LC_ALL=C sort > "$WORK/after.txt"
 echo "   rows per table, before → after:"
 LC_ALL=C join -a1 -a2 -e '-' -o 0,1.2,2.2 "$WORK/before.txt" "$WORK/after.txt" | awk '{printf "     %-28s %6s → %s\n", $1, $2, $3}'

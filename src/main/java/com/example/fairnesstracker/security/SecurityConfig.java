@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.security;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * {@code @PreAuthorize} for roles and {@link AccessPolicy} for the teams and engineers a user may see.
  */
 @Configuration(proxyBeanMethods = false)
+// Not in a non-web run (ops/migrate-db.sh starts the app without a web server, where HttpSecurity doesn't exist)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableMethodSecurity
 public class SecurityConfig {
 
