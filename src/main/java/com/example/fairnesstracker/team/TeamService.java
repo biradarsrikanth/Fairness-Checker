@@ -1,8 +1,8 @@
 package com.example.fairnesstracker.team;
 
-import com.example.fairnesstracker.common.exception.BadRequestException;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
+import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.engineer.EngineerRepository;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
@@ -37,7 +37,7 @@ public class TeamService {
 
     public TeamResponse create(TeamRequest request) {
         if (teamRepository.findByName(request.name()).isPresent()) {
-            throw new ConflictException("Team '" + request.name() + "' already exists");
+            throw duplicateName(request.name());
         }
         return TeamResponse.from(teamRepository.save(new Team(request.name(), timezone(request.timezone()))));
     }
@@ -47,7 +47,7 @@ public class TeamService {
         teamRepository.findByName(request.name())
                 .filter(other -> !other.getId().equals(id))
                 .ifPresent(other -> {
-                    throw new ConflictException("Team '" + request.name() + "' already exists");
+                    throw duplicateName(request.name());
                 });
         team.setName(request.name());
         team.setTimezone(timezone(request.timezone()));
@@ -66,12 +66,17 @@ public class TeamService {
     @Transactional(readOnly = true)
     public Team findByName(String name) {
         return teamRepository.findByName(name)
-                .orElseThrow(() -> new BadRequestException("Unknown team '" + name + "'; create it via /api/teams"));
+                .orElseThrow(() -> ValidationException.onField("team",
+                        "Unknown team '" + name + "'; create it via /api/v1/teams"));
     }
 
     private Team find(Long id) {
         return teamRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + id));
+                .orElseThrow(() -> ResourceNotFoundException.of("Team", id));
+    }
+
+    private static ConflictException duplicateName(String name) {
+        return ConflictException.onField("name", "Team '" + name + "' already exists");
     }
 
     private static String timezone(String value) {
@@ -79,7 +84,8 @@ public class TeamService {
         try {
             return ZoneId.of(value).getId();
         } catch (DateTimeException e) {
-            throw new BadRequestException("Unknown timezone '" + value + "'; use an IANA name like Asia/Kolkata");
+            throw ValidationException.onField("timezone",
+                    "Unknown timezone '" + value + "'; use an IANA name like Asia/Kolkata");
         }
     }
 }

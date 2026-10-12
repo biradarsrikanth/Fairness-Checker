@@ -3,6 +3,7 @@ package com.example.fairnesstracker.alert;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
+import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
 import org.springframework.stereotype.Service;
@@ -29,10 +30,11 @@ public class AlertService {
     /** A manually reported alert, paged to the given engineer now. */
     public AlertResponse saveAlert(AlertRequest request) {
 
+        // A missing engineer is a problem with the request body, not a missing resource at this URL
         Engineer engineer = engineerRepository
                 .findById(request.engineerId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Engineer not found"));
+                .orElseThrow(() -> ValidationException.onField("engineerId",
+                        "Engineer " + request.engineerId() + " doesn't exist"));
 
         AlertEvent alert = new AlertEvent();
         alert.setEngineer(engineer);
@@ -70,9 +72,7 @@ public class AlertService {
     public List<AlertResponse> getAlertsByEngineer(Long engineerId) {
 
         engineerRepository.findById(engineerId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Engineer not found"));
+                .orElseThrow(() -> ResourceNotFoundException.of("Engineer", engineerId));
 
         return alertRepository.findByEngineer_Id(engineerId)
                 .stream()
@@ -99,9 +99,6 @@ public class AlertService {
 
     private AlertEvent find(Long id) {
         return alertRepository.findById(id)
-                .orElseThrow(()->
-                        new ResourceNotFoundException(
-                                "Event not found with id: " + id)
-                );
+                .orElseThrow(() -> ResourceNotFoundException.of("Alert", id));
     }
 }

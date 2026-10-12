@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.scoring;
 
 import com.example.fairnesstracker.common.config.HttpClientConfig;
+import com.example.fairnesstracker.common.exception.ErrorCode;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
@@ -91,7 +92,7 @@ class ScoringClientTest {
         for (int i = 0; i < 3; i++) server.enqueue(json(503, "{\"detail\": \"Database unavailable\"}"));
 
         assertThatThrownBy(() -> client.burnout(new ScoreQuery(30, null, null, null)))
-                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getStatus()).isEqualTo(503));
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_UNAVAILABLE));
         assertThat(server.getRequestCount()).isEqualTo(3);
     }
 
@@ -101,7 +102,7 @@ class ScoringClientTest {
 
         assertThatThrownBy(() -> client.engineer(9, new ScoreQuery(null, null, null, "ignored")))
                 .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(404);
+                    assertThat(e.getCode()).isEqualTo(ErrorCode.NOT_FOUND);
                     assertThat(e.getMessage()).isEqualTo("Engineer 9 not found");
                 });
         assertThat(server.getRequestCount()).isEqualTo(1);
@@ -118,7 +119,7 @@ class ScoringClientTest {
 
         assertThatThrownBy(() -> client.burnout(new ScoreQuery(30, null, null, null)))
                 .isInstanceOfSatisfying(ScoringServiceException.class, e -> {
-                    assertThat(e.getStatus()).isEqualTo(502);
+                    assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_ERROR);
                     assertThat(e.getMessage()).isEqualTo("Scoring service returned an unexpected response");
                 });
         assertThat(server.getRequestCount()).isEqualTo(1);
@@ -129,7 +130,7 @@ class ScoringClientTest {
         server.enqueue(json(401, "{\"detail\": \"Invalid or missing API key\"}"));
 
         assertThatThrownBy(() -> client.fairness(new ScoreQuery(null, null, null, null)))
-                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getStatus()).isEqualTo(502));
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
     }
 
     @Test
@@ -138,7 +139,7 @@ class ScoringClientTest {
 
         long started = System.nanoTime();
         assertThatThrownBy(() -> client.fairness(new ScoreQuery(null, null, null, null)))
-                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getStatus()).isEqualTo(504));
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_TIMEOUT));
         assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(1500));
         assertThat(server.getRequestCount()).isEqualTo(1);
     }
@@ -148,7 +149,7 @@ class ScoringClientTest {
         server.shutdown();
 
         assertThatThrownBy(() -> client.fairness(new ScoreQuery(null, null, null, null)))
-                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getStatus()).isEqualTo(503));
+                .isInstanceOfSatisfying(ScoringServiceException.class, e -> assertThat(e.getCode()).isEqualTo(ErrorCode.UPSTREAM_UNAVAILABLE));
     }
 
     private static MockResponse json(int status, String body) {

@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.scoring;
 
+import com.example.fairnesstracker.common.exception.ErrorCode;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
 import com.example.fairnesstracker.common.web.RequestIdFilter;
 import com.example.fairnesstracker.scoring.dto.ScoreQuery;
@@ -26,9 +27,10 @@ import java.util.Set;
  *   <li>Timeouts come from the WebClient (see HttpClientConfig).</li>
  *   <li>Connection failures and 502/503/504 are retried with exponential backoff; timeouts are not,
  *       because retrying a slow service only adds load to it.</li>
- *   <li>Scorer errors are translated into gateway statuses: 4xx pass through, auth failures mean our
- *       configuration is wrong (502), timeouts become 504 and other failures 502/503. A response that
- *       doesn't match the contract is also a 502.</li>
+ *   <li>Scorer errors are translated into gateway errors: the scorer's documented client errors (404 unknown
+ *       engineer, 400/422 invalid window) pass through; anything else means the gateway or its configuration
+ *       is wrong (502 UPSTREAM_ERROR). Unreachable is 503, slow is 504, and a response that doesn't match the
+ *       contract is a 502.</li>
  * </ul>
  */
 @Slf4j
@@ -94,30 +96,37 @@ public class ScoringClient {
 
     private ScoringServiceException fromUpstreamStatus(int upstream, String body) {
         String detail = detail(body);
-        if (upstream == 401 || upstream == 403) {
-            log.error("Scorer rejected our API key; check SCORER_API_KEY on both services");
-            return new ScoringServiceException(502, upstream, "Scoring service rejected the gateway's credentials");
-        }
-        if (upstream == 422) return new ScoringServiceException(400, upstream, detail);
-        if (upstream < 500) return new ScoringServiceException(upstream, upstream, detail);
-        if (upstream == 503) return new ScoringServiceException(503, upstream, "Scoring service is unavailable");
-        if (upstream == 504) return new ScoringServiceException(504, upstream, "Scoring service timed out");
-        log.error("Scorer returned {}: {}", upstream, detail);
-        return new ScoringServiceException(502, upstream, "Scoring service error");
+        return switch (upstream) {
+            case 404 -> new ScoringServiceException(ErrorCode.NOT_FOUND, upstream, detail);
+            case 400, 422 -> new ScoringServiceException(ErrorCode.VALIDATION_FAILED, upstream, detail);
+            case 401, 403 -> {
+                log.error("Scorer rejected our API key; check SCORER_API_KEY on both services");
+                yield new ScoringServiceException(ErrorCode.UPSTREAM_ERROR, upstream,
+                        "Scoring service rejected the gateway's credentials");
+            }
+            case 503 -> new ScoringServiceException(ErrorCode.UPSTREAM_UNAVAILABLE, upstream,
+                    "Scoring service is unavailable");
+            case 504 -> new ScoringServiceException(ErrorCode.UPSTREAM_TIMEOUT, upstream, "Scoring service timed out");
+            default -> {
+                log.error("Scorer returned {}: {}", upstream, detail);
+                yield new ScoringServiceException(ErrorCode.UPSTREAM_ERROR, upstream, "Scoring service error");
+            }
+        };
     }
 
     private static ScoringServiceException fromRequestFailure(WebClientRequestException ex) {
         if (isTimeout(ex)) {
-            return new ScoringServiceException(504, 0, "Scoring service timed out");
+            return new ScoringServiceException(ErrorCode.UPSTREAM_TIMEOUT, 0, "Scoring service timed out");
         }
         log.error("Scorer unreachable: {}", ex.getMessage());
-        return new ScoringServiceException(503, 0, "Scoring service is unavailable");
+        return new ScoringServiceException(ErrorCode.UPSTREAM_UNAVAILABLE, 0, "Scoring service is unavailable");
     }
 
     // The scorer answered 200 with JSON that doesn't match the contract (e.g. a required field missing)
     private static ScoringServiceException fromInvalidResponse(String path, DecodingException ex) {
         log.error("Scorer response for {} doesn't match the v1 contract: {}", path, ex.getMessage());
-        return new ScoringServiceException(502, 200, "Scoring service returned an unexpected response");
+        return new ScoringServiceException(ErrorCode.UPSTREAM_ERROR, 200,
+                "Scoring service returned an unexpected response");
     }
 
     private static boolean isRetryable(Throwable ex) {

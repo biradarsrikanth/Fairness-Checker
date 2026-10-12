@@ -31,7 +31,8 @@ class TeamAndEngineerApiTest {
                 .andExpect(jsonPath("$.timezone").value("Europe/London"));
         post("/api/v1/teams", "{\"name\": \"SRE\"}", 409);
         post("/api/v1/teams", "{\"name\": \"Ops\", \"timezone\": \"Mars/Olympus\"}", 400)
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Unknown timezone")));
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("timezone"));
         post("/api/v1/teams", "{\"name\": \"Ops\"}", 201)
                 .andExpect(jsonPath("$.timezone").value("Asia/Kolkata"));
     }
@@ -39,7 +40,8 @@ class TeamAndEngineerApiTest {
     @Test
     void engineerNeedsAnExistingTeam() throws Exception {
         post("/api/v1/engineers", engineer("Asha", "asha@example.com", "Nope"), 400)
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Unknown team")));
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("team"));
 
         post("/api/v1/teams", "{\"name\": \"SRE\"}", 201);
         post("/api/v1/engineers", engineer("Asha", "asha@example.com", "SRE"), 201)

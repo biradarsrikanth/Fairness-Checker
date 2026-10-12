@@ -1,6 +1,6 @@
 package com.example.fairnesstracker.oncall;
 
-import com.example.fairnesstracker.common.exception.BadRequestException;
+import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.oncall.dto.OncallShiftResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -35,7 +35,7 @@ public class OncallController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long engineerId) {
         if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > MAX_DAYS) {
-            throw new BadRequestException("'to' must be on or after 'from', at most " + MAX_DAYS + " days later");
+            throw ValidationException.onField("to", "must be on or after 'from', at most " + MAX_DAYS + " days later");
         }
         return shiftRepository.findInPeriod(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), engineerId)
                 .stream()

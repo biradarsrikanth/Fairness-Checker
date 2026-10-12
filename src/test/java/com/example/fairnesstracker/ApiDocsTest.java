@@ -63,6 +63,15 @@ class ApiDocsTest {
     }
 
     @Test
+    void documentsTheErrorModelOnEveryOperation() throws Exception {
+        JsonNode spec = spec();
+        assertThat(spec.at("/components/schemas/ApiError/properties").propertyNames()).containsExactlyInAnyOrder(
+                "type", "title", "status", "detail", "instance", "code", "errors", "requestId", "timestamp");
+        assertThat(spec.at("/paths/~1api~1v1~1teams/get/responses/default/content/application~1problem+json/schema/$ref")
+                .asString()).isEqualTo("#/components/schemas/ApiError");
+    }
+
+    @Test
     void servesSwaggerUi() throws Exception {
         mvc.perform(get("/swagger-ui.html")).andExpect(status().is3xxRedirection());
     }

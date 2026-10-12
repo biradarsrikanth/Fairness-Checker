@@ -24,6 +24,8 @@ public class RequestIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Request-ID";
     public static final String MDC_KEY = "requestId";
+    /** Request attribute holding the id; unlike the MDC entry it is still there during an error dispatch. */
+    public static final String ATTRIBUTE = RequestIdFilter.class.getName() + ".id";
 
     // Only reuse caller ids that are safe to write to logs
     private static final Pattern VALID_ID = Pattern.compile("^[A-Za-z0-9._-]{1,128}$");
@@ -38,6 +40,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
                 : UUID.randomUUID().toString().replace("-", "");
 
         MDC.put(MDC_KEY, requestId);
+        request.setAttribute(ATTRIBUTE, requestId);
         response.setHeader(HEADER, requestId);
         try {
             chain.doFilter(request, response);

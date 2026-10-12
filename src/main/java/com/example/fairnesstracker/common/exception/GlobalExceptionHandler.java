@@ -1,106 +1,261 @@
 package com.example.fairnesstracker.common.exception;
 
+import com.example.fairnesstracker.common.exception.ApiError.FieldError;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.TypeMismatchException;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.ErrorResponse;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Turns every exception into an {@link ApiError}. Spring's own exceptions (unknown route, wrong method,
+ * unreadable body, ...) arrive through {@link ResponseEntityExceptionHandler}; ours carry an
+ * {@link ErrorCode}. Client errors explain themselves; server errors never reveal internals.
+ */
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
-        return respond(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage());
+    static final String INTERNAL_DETAIL = "Something went wrong; quote the requestId if you report this";
+    private static final String INVALID_VALUE = "has an invalid value";
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
+        if (ex.getCode().status().is5xxServerError()) {
+            log.warn("{}: {}", ex.getCode(), ex.getMessage());
+        }
+        return respond(ex.getCode().status(), ex.getCode(), ex.getMessage(), ex.getErrors(), request);
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex) {
-        return respond(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage());
-    }
-
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
-        return respond(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage());
-    }
-
-    // A database constraint (unique email, foreign key, CHECK) rejected the write
+    // A constraint rejected the write. Services check the usual cases first, so this is mostly a race with a
+    // concurrent request; the constraint name is logged, not returned
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex,
+                                                        HttpServletRequest request) {
         log.warn("Constraint violation: {}", ex.getMostSpecificCause().getMessage());
-        return respond(HttpStatus.CONFLICT, "CONFLICT", "The change conflicts with existing data");
+        return respond(ErrorCode.CONFLICT, "The change conflicts with existing data", request);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                // Conversion failures (e.g. start=not-a-date) carry Java type names; don't show those
-                .map(error -> error.getField() + ": "
-                        + (error.isBindingFailure() ? "invalid value" : error.getDefaultMessage()))
-                .collect(Collectors.joining(", "));
-        return respond(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message);
-    }
-
-    // Constraint on a @PathVariable / @RequestParam, e.g. @Positive
-    @ExceptionHandler(HandlerMethodValidationException.class)
-    public ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException ex) {
-        String message = ex.getAllErrors().stream()
-                .map(error -> error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        return respond(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message);
-    }
-
-    // e.g. ?start=not-a-date or /engineers/abc
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        return respond(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Invalid value for '" + ex.getName() + "'");
-    }
-
-    // Status is already translated into a gateway status by ScoringClient
-    @ExceptionHandler(ScoringServiceException.class)
-    public ResponseEntity<ApiError> handleScoringServiceException(ScoringServiceException ex) {
-        HttpStatus status = HttpStatus.valueOf(ex.getStatus());
-        return respond(status, status.name(), ex.getMessage());
-    }
-
-    // An upstream (PagerDuty) call failed to connect or timed out
+    // PagerDuty didn't answer (connection refused, timeout); scorer failures arrive as ScoringServiceException
     @ExceptionHandler(WebClientRequestException.class)
-    public ResponseEntity<ApiError> handleUpstreamUnavailable(WebClientRequestException ex) {
+    public ResponseEntity<ApiError> handleUpstreamUnavailable(WebClientRequestException ex,
+                                                              HttpServletRequest request) {
         log.error("Upstream request failed: {}", ex.getMessage());
-        return respond(HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Upstream service is unavailable");
+        return respond(ErrorCode.UPSTREAM_UNAVAILABLE, "Upstream service is unavailable", request);
     }
 
-    // An upstream (PagerDuty) call returned an error
     @ExceptionHandler(WebClientResponseException.class)
-    public ResponseEntity<ApiError> handleUpstreamError(WebClientResponseException ex) {
+    public ResponseEntity<ApiError> handleUpstreamError(WebClientResponseException ex,
+                                                        HttpServletRequest request) {
         log.error("Upstream returned {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
-        return respond(HttpStatus.BAD_GATEWAY, "BAD_GATEWAY", "Upstream service returned an error");
+        return respond(ErrorCode.UPSTREAM_ERROR, "Upstream service returned an error", request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleGeneric(Exception ex) {
-        // Spring's own client errors (unknown path, wrong method, missing parameter) keep their status
-        if (ex instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
-            HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
-            return respond(status, status.name(), errorResponse.getBody().getDetail());
-        }
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
         log.error("Unhandled error", ex);
-        return respond(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Something went wrong");
+        return respond(ErrorCode.INTERNAL_ERROR, INTERNAL_DETAIL, request);
     }
 
-    private static ResponseEntity<ApiError> respond(HttpStatus status, String error, String message) {
-        return ResponseEntity.status(status).body(ApiError.of(status.value(), error, message));
+    // ---------------------------------------------------------------------------------------------------
+    // Spring MVC exceptions with field-level detail
+    // ---------------------------------------------------------------------------------------------------
+
+    // @Valid on a request body or a bound object (e.g. query parameters into a record)
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+                                                                  HttpHeaders headers, HttpStatusCode status,
+                                                                  WebRequest request) {
+        return validationFailed(fieldErrors(ex.getBindingResult()), headers, request);
+    }
+
+    // Constraints on @PathVariable/@RequestParam (e.g. @Positive), and @Valid objects of such a method
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
+                                                                            HttpHeaders headers,
+                                                                            HttpStatusCode status,
+                                                                            WebRequest request) {
+        List<FieldError> errors = new ArrayList<>();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            if (result instanceof ParameterErrors bound) {
+                errors.addAll(fieldErrors(bound));
+            } else {
+                String parameter = parameterName(result.getMethodParameter());
+                result.getResolvableErrors().forEach(e -> errors.add(new FieldError(parameter, message(e))));
+            }
+        }
+        ex.getCrossParameterValidationResults().forEach(e -> errors.add(new FieldError(null, message(e))));
+        return validationFailed(errors, headers, request);
+    }
+
+    // e.g. ?start=not-a-date or /engineers/abc
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+                                                        HttpStatusCode status, WebRequest request) {
+        String name = ex instanceof MethodArgumentTypeMismatchException m ? m.getName() : ex.getPropertyName();
+        return validationFailed(List.of(new FieldError(name, INVALID_VALUE)), headers, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                          HttpHeaders headers,
+                                                                          HttpStatusCode status,
+                                                                          WebRequest request) {
+        return validationFailed(List.of(new FieldError(ex.getParameterName(), "is required")), headers, request);
+    }
+
+    // A JSON value of the wrong type names its field; anything else (empty body, broken JSON) can't
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+                                                                  HttpHeaders headers, HttpStatusCode status,
+                                                                  WebRequest request) {
+        if (ex.getMostSpecificCause() instanceof MismatchedInputException mismatch && !mismatch.getPath().isEmpty()) {
+            return validationFailed(List.of(new FieldError(jsonPath(mismatch), INVALID_VALUE)), headers, request);
+        }
+        return toObjectResponse(status, ErrorCode.MALFORMED_REQUEST,
+                "Request body is missing or isn't valid JSON", List.of(), headers, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException ex, HttpHeaders headers,
+                                                                    HttpStatusCode status, WebRequest request) {
+        HttpServletRequest servletRequest = ((ServletWebRequest) request).getRequest();
+        return toObjectResponse(status, ErrorCode.NOT_FOUND,
+                "No endpoint " + servletRequest.getMethod() + " " + servletRequest.getRequestURI(), List.of(), headers,
+                request);
+    }
+
+    // Every other Spring MVC exception: keep Spring's status, headers (e.g. Allow) and its client-safe detail
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, HttpHeaders headers,
+                                                             HttpStatusCode statusCode, WebRequest request) {
+        String detail;
+        if (statusCode.is5xxServerError()) {
+            log.error("Request failed", ex);
+            detail = INTERNAL_DETAIL;
+        } else {
+            detail = body instanceof ProblemDetail problem && problem.getDetail() != null
+                    ? problem.getDetail()
+                    : ErrorCode.forStatus(statusCode).name();
+        }
+        return toObjectResponse(statusCode, ErrorCode.forStatus(statusCode), detail, List.of(), headers, request);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+
+    private ResponseEntity<Object> validationFailed(List<FieldError> errors, HttpHeaders headers, WebRequest request) {
+        List<FieldError> sorted = errors.stream()
+                .sorted(Comparator.comparing(FieldError::field, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(FieldError::message))
+                .toList();
+        String detail = sorted.stream()
+                .map(e -> e.field() != null ? e.field() + ": " + e.message() : e.message())
+                .collect(Collectors.joining("; "));
+        return toObjectResponse(ErrorCode.VALIDATION_FAILED.status(), ErrorCode.VALIDATION_FAILED, detail, sorted,
+                headers, request);
+    }
+
+    private static List<FieldError> fieldErrors(BindingResult result) {
+        List<FieldError> errors = new ArrayList<>();
+        // Binding failures (e.g. "abc" for a number) carry Java type names in their message; don't show those
+        result.getFieldErrors().forEach(e ->
+                errors.add(new FieldError(e.getField(), e.isBindingFailure() ? INVALID_VALUE : message(e))));
+        result.getGlobalErrors().forEach(e -> errors.add(new FieldError(null, message(e))));
+        return errors;
+    }
+
+    private static List<FieldError> fieldErrors(ParameterErrors result) {
+        List<FieldError> errors = new ArrayList<>();
+        result.getFieldErrors().forEach(e ->
+                errors.add(new FieldError(e.getField(), e.isBindingFailure() ? INVALID_VALUE : message(e))));
+        result.getGlobalErrors().forEach(e -> errors.add(new FieldError(null, message(e))));
+        return errors;
+    }
+
+    // The name the client used: @RequestParam("x")/@PathVariable("x") if given, else the Java parameter name
+    private static String parameterName(MethodParameter parameter) {
+        RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
+        if (requestParam != null) return firstNonEmpty(requestParam.value(), requestParam.name(), parameter);
+        PathVariable pathVariable = parameter.getParameterAnnotation(PathVariable.class);
+        if (pathVariable != null) return firstNonEmpty(pathVariable.value(), pathVariable.name(), parameter);
+        return parameter.getParameterName();
+    }
+
+    // value and name are aliases; the raw annotation only has the one that was written
+    private static String firstNonEmpty(String value, String name, MethodParameter parameter) {
+        if (!value.isEmpty()) return value;
+        return !name.isEmpty() ? name : parameter.getParameterName();
+    }
+
+    private static String message(MessageSourceResolvable error) {
+        return error.getDefaultMessage() != null ? error.getDefaultMessage() : INVALID_VALUE;
+    }
+
+    // e.g. "engineerId" or "items[2].name"
+    private static String jsonPath(JacksonException ex) {
+        StringBuilder path = new StringBuilder();
+        for (JacksonException.Reference ref : ex.getPath()) {
+            if (ref.getPropertyName() != null) {
+                if (!path.isEmpty()) path.append('.');
+                path.append(ref.getPropertyName());
+            } else if (ref.getIndex() >= 0) {
+                path.append('[').append(ref.getIndex()).append(']');
+            }
+        }
+        return path.toString();
+    }
+
+    private static ResponseEntity<ApiError> respond(ErrorCode code, String detail, HttpServletRequest request) {
+        return respond(code.status(), code, detail, List.of(), request);
+    }
+
+    private static ResponseEntity<ApiError> respond(HttpStatusCode status, ErrorCode code, String detail,
+                                                    List<FieldError> errors, HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(ApiError.of(status, code, detail, errors, request));
+    }
+
+    private static ResponseEntity<Object> toObjectResponse(HttpStatusCode status, ErrorCode code, String detail,
+                                                           List<FieldError> errors, HttpHeaders headers,
+                                                           WebRequest request) {
+        HttpServletRequest servletRequest = ((ServletWebRequest) request).getRequest();
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.putAll(headers);
+        responseHeaders.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+        return ResponseEntity.status(status).headers(responseHeaders)
+                .body(ApiError.of(status, code, detail, errors, servletRequest));
     }
 }

@@ -11,5 +11,7 @@ public interface EngineerRepository extends JpaRepository<Engineer, Long> {
     findByPagerDutyUserId(String pagerDutyUserId);
     Optional<Engineer> findByName(String name);
 
+    Optional<Engineer> findByEmailIgnoreCase(String email);
+
     boolean existsByTeam_Id(Long teamId);
 }

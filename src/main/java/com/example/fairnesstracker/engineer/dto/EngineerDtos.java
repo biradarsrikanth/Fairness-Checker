@@ -12,9 +12,9 @@ public final class EngineerDtos {
 
     /** {@code team} is the name of an existing team (see /api/v1/teams). {@code active} defaults to true. */
     public record EngineerRequest(
-            @NotBlank(message = "Name Cannot be Empty") @Size(max = 255) String name,
-            @Email(message = "Email Not Valid!") @NotBlank(message = "Email is required") @Size(max = 255) String email,
-            @NotBlank(message = "Team is required") String team,
+            @NotBlank @Size(max = 255) String name,
+            @NotBlank @Email @Size(max = 255) String email,
+            @NotBlank String team,
             @Size(max = 255) String pagerDutyUserId,
             Boolean active
     ) {

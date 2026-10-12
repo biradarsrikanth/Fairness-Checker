@@ -181,10 +181,15 @@ class ApiJsonContractTest {
         mvc.perform(get("/api/v1/teams/{id}", 999_999).header("X-Request-ID", "contract-test-1"))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string("X-Request-ID", "contract-test-1"))
-                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.length()").value(9))
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.title").value("Not Found"))
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Team not found with id: 999999"))
+                .andExpect(jsonPath("$.detail").value("Team 999999 not found"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/teams/999999"))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.errors").isEmpty())
                 .andExpect(jsonPath("$.requestId").value("contract-test-1"))
                 .andExpect(jsonPath("$.timestamp").value(matchesPattern("\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z")));
     }

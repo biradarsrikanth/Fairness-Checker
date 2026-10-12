@@ -1,22 +1,22 @@
 package com.example.fairnesstracker.common.exception;
 
-/**
- * A scorer call failed. {@code status} is what the gateway returns to its caller;
- * {@code upstreamStatus} is what the scorer returned (0 when it never answered).
- */
-public class ScoringServiceException extends RuntimeException {
+import java.util.List;
 
-    private final int status;
+/**
+ * A scorer call failed. The {@link ErrorCode} is what the gateway reports to its caller;
+ * {@code upstreamStatus} is what the scorer returned (0 when it never answered), which drives retries.
+ */
+public class ScoringServiceException extends ApiException {
+
     private final int upstreamStatus;
 
-    public ScoringServiceException(int status, int upstreamStatus, String message) {
-        super(message);
-        this.status = status;
-        this.upstreamStatus = upstreamStatus;
+    public ScoringServiceException(ErrorCode code, int upstreamStatus, String detail) {
+        this(code, upstreamStatus, detail, List.of());
     }
 
-    public int getStatus() {
-        return status;
+    public ScoringServiceException(ErrorCode code, int upstreamStatus, String detail, List<ApiError.FieldError> errors) {
+        super(code, detail, errors);
+        this.upstreamStatus = upstreamStatus;
     }
 
     public int getUpstreamStatus() {

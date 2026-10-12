@@ -1,17 +1,16 @@
 package com.example.fairnesstracker.engineer;
 
-import com.example.fairnesstracker.team.TeamService;
-
-
 import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
+import com.example.fairnesstracker.team.TeamService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -64,18 +63,36 @@ public class EngineerService {
     }
 
     private void apply(Engineer engineer, EngineerRequest request) {
+        // Blank means "not linked to PagerDuty"; stored as NULL so the unique key allows many of them
+        String pagerDutyUserId = request.pagerDutyUserId() == null || request.pagerDutyUserId().isBlank()
+                ? null : request.pagerDutyUserId().strip();
+        rejectDuplicates(engineer.getId(), request.email(), pagerDutyUserId);
         engineer.setName(request.name());
         engineer.setEmail(request.email());
         engineer.setTeam(teamService.findByName(request.team()));
-        engineer.setPagerDutyUserId(request.pagerDutyUserId());
+        engineer.setPagerDutyUserId(pagerDutyUserId);
         engineer.setActive(request.active() == null || request.active());
+    }
+
+    // Both are unique in the database (email regardless of case); checking first names the field
+    private void rejectDuplicates(Long id, String email, String pagerDutyUserId) {
+        engineerRepository.findByEmailIgnoreCase(email)
+                .filter(other -> !Objects.equals(other.getId(), id))
+                .ifPresent(other -> {
+                    throw ConflictException.onField("email", "Engineer " + other.getId() + " already uses " + email);
+                });
+        if (pagerDutyUserId != null) {
+            engineerRepository.findByPagerDutyUserId(pagerDutyUserId)
+                    .filter(other -> !Objects.equals(other.getId(), id))
+                    .ifPresent(other -> {
+                        throw ConflictException.onField("pagerDutyUserId",
+                                "Engineer " + other.getId() + " is already linked to PagerDuty user " + pagerDutyUserId);
+                    });
+        }
     }
 
     private Engineer find(Long id) {
         return engineerRepository.findById(id)
-                .orElseThrow(()->
-                        new ResourceNotFoundException(
-                                "Engineer not found with id: " + id)
-                );
+                .orElseThrow(() -> ResourceNotFoundException.of("Engineer", id));
     }
 }

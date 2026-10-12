@@ -41,7 +41,7 @@ class AlertEventControllerTest {
                         .content(badJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error")
-                        .value("VALIDATION_FAILED"));
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("engineerId"));
     }
 }
