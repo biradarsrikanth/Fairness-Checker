@@ -35,7 +35,7 @@ class AlertEventControllerTest {
                 }
                 """;
 
-        mvc.perform(post("/api/alerts")
+        mvc.perform(post("/api/v1/alerts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(badJson))
                 .andExpect(status().isBadRequest())

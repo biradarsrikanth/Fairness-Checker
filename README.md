@@ -31,10 +31,10 @@ Needs JDK 21.
 
 | Area | Routes |
 |---|---|
-| Teams | `GET/POST /api/teams`, `GET/PUT/DELETE /api/teams/{id}` |
-| Engineers | `GET/POST /api/engineers`, `GET/PUT/DELETE /api/engineers/{id}` (deactivate instead of deleting engineers with history) |
-| Alerts | `GET/POST /api/alerts`, `GET /api/alerts/{id}`, `GET /api/alerts/{id}/assignments`, `GET /api/alerts/filter` |
-| On-call | `GET /api/oncall?from=&to=&engineerId=` |
+| Teams | `GET/POST /api/v1/teams`, `GET/PUT/DELETE /api/v1/teams/{id}` |
+| Engineers | `GET/POST /api/v1/engineers`, `GET/PUT/DELETE /api/v1/engineers/{id}` (deactivate instead of deleting engineers with history) |
+| Alerts | `GET/POST /api/v1/alerts`, `GET /api/v1/alerts/{id}`, `GET /api/v1/alerts/{id}/assignments`, `GET /api/v1/alerts/filter` |
+| On-call | `GET /api/v1/oncall?from=&to=&engineerId=` |
 | Scores | `GET /api/v1/scores/{fairness,burnout,timeofday}`, `GET /api/v1/scores/engineers/{id}` (`days` or `start`/`end`, optional `team`) |
-| PagerDuty | `POST /api/pagerduty/sync`, `POST /api/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` |
+| PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
 | Operations | `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus` |

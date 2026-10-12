@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
+// Not under /api/v1: PagerDuty is configured with this exact URL
 @RequestMapping("/api/webhook")
 @RequiredArgsConstructor
 public class WebhookController {

@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/oncall")
+@RequestMapping("/api/v1/oncall")
 public class OncallController {
 
     private static final long MAX_DAYS = 366;

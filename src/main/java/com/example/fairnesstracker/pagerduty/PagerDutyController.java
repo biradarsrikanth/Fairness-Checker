@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/pagerduty")
+@RequestMapping("/api/v1/pagerduty")
 public class PagerDutyController {
 
     private final PagerDutyService pagerDutyService;

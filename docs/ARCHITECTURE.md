@@ -166,7 +166,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `SCORER_CONNECT_TIMEOUT` / `SCORER_RESPONSE_TIMEOUT` / `SCORER_MAX_RETRIES` | gateway | no | `2s` / `10s` / `2` | Scorer call resilience |
 | `PAGERDUTY_CONNECT_TIMEOUT` / `PAGERDUTY_RESPONSE_TIMEOUT` | gateway | no | `5s` / `30s` | PagerDuty call timeouts |
 | `PAGERDUTY_SYNC_ENABLED` / `PAGERDUTY_SYNC_LOOKBACK_DAYS` | gateway | no | `true` / `30` | Scheduled incident sync |
-| `PAGERDUTY_ONCALL_LOOKBACK_DAYS` | gateway | no | `7` | Scheduled on-call sync; backfill with `POST /api/pagerduty/sync/oncalls?days=365` |
+| `PAGERDUTY_ONCALL_LOOKBACK_DAYS` | gateway | no | `7` | Scheduled on-call sync; backfill with `POST /api/v1/pagerduty/sync/oncalls?days=365` |
 | `SEED_DEMO_DATA` | gateway | no | `false` | Demo engineers in an empty database |
 | `JPA_SHOW_SQL` | gateway | no | `false` | Log SQL (debugging only) |
 | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | gateway | no | plain text | `ecs` for JSON logs |

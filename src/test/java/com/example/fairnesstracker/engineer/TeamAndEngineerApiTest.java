@@ -27,48 +27,48 @@ class TeamAndEngineerApiTest {
 
     @Test
     void teamLifecycleAndValidation() throws Exception {
-        post("/api/teams", "{\"name\": \"SRE\", \"timezone\": \"Europe/London\"}", 201)
+        post("/api/v1/teams", "{\"name\": \"SRE\", \"timezone\": \"Europe/London\"}", 201)
                 .andExpect(jsonPath("$.timezone").value("Europe/London"));
-        post("/api/teams", "{\"name\": \"SRE\"}", 409);
-        post("/api/teams", "{\"name\": \"Ops\", \"timezone\": \"Mars/Olympus\"}", 400)
+        post("/api/v1/teams", "{\"name\": \"SRE\"}", 409);
+        post("/api/v1/teams", "{\"name\": \"Ops\", \"timezone\": \"Mars/Olympus\"}", 400)
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Unknown timezone")));
-        post("/api/teams", "{\"name\": \"Ops\"}", 201)
+        post("/api/v1/teams", "{\"name\": \"Ops\"}", 201)
                 .andExpect(jsonPath("$.timezone").value("Asia/Kolkata"));
     }
 
     @Test
     void engineerNeedsAnExistingTeam() throws Exception {
-        post("/api/engineers", engineer("Asha", "asha@example.com", "Nope"), 400)
+        post("/api/v1/engineers", engineer("Asha", "asha@example.com", "Nope"), 400)
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Unknown team")));
 
-        post("/api/teams", "{\"name\": \"SRE\"}", 201);
-        post("/api/engineers", engineer("Asha", "asha@example.com", "SRE"), 201)
+        post("/api/v1/teams", "{\"name\": \"SRE\"}", 201);
+        post("/api/v1/engineers", engineer("Asha", "asha@example.com", "SRE"), 201)
                 .andExpect(jsonPath("$.team").value("SRE"))
                 .andExpect(jsonPath("$.active").value(true));
     }
 
     @Test
     void teamWithEngineersCannotBeDeleted() throws Exception {
-        post("/api/teams", "{\"name\": \"SRE\"}", 201);
-        post("/api/engineers", engineer("Asha", "asha@example.com", "SRE"), 201);
+        post("/api/v1/teams", "{\"name\": \"SRE\"}", 201);
+        post("/api/v1/engineers", engineer("Asha", "asha@example.com", "SRE"), 201);
 
-        mvc.perform(delete("/api/teams/1")).andExpect(status().isConflict());
+        mvc.perform(delete("/api/v1/teams/1")).andExpect(status().isConflict());
     }
 
     @Test
     void engineerWithAlertsIsDeactivatedNotDeleted() throws Exception {
-        post("/api/teams", "{\"name\": \"SRE\"}", 201);
-        post("/api/engineers", engineer("Asha", "asha@example.com", "SRE"), 201);
-        post("/api/alerts", "{\"engineerId\": 1, \"severity\": \"P2\"}", 201)
+        post("/api/v1/teams", "{\"name\": \"SRE\"}", 201);
+        post("/api/v1/engineers", engineer("Asha", "asha@example.com", "SRE"), 201);
+        post("/api/v1/alerts", "{\"engineerId\": 1, \"severity\": \"P2\"}", 201)
                 .andExpect(jsonPath("$.source").value("MANUAL"))
                 .andExpect(jsonPath("$.status").value("triggered"));
 
-        mvc.perform(delete("/api/engineers/1")).andExpect(status().isConflict());
-        mvc.perform(put("/api/engineers/1").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(delete("/api/v1/engineers/1")).andExpect(status().isConflict());
+        mvc.perform(put("/api/v1/engineers/1").contentType(MediaType.APPLICATION_JSON)
                         .content(engineer("Asha", "asha@example.com", "SRE").replace("}", ", \"active\": false}")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/alerts/1/assignments"))
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/alerts/1/assignments"))
                 .andExpect(jsonPath("$[0].kind").value("PAGED"))
                 .andExpect(jsonPath("$[0].source").value("MANUAL"));
     }

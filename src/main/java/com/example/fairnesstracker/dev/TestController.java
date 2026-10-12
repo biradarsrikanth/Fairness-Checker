@@ -14,7 +14,7 @@ import java.time.ZoneOffset;
 // Creates fake alerts: only available with the "dev" profile, never in production
 @Profile("dev")
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1/dev")
 public class TestController {
 
     @Autowired

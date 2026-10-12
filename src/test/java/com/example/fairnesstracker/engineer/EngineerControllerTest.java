@@ -32,7 +32,7 @@ public class EngineerControllerTest {
                 }
                 """;
 
-        mvc.perform(post("/api/engineers")
+        mvc.perform(post("/api/v1/engineers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(badJson))
                 .andExpect(status().isBadRequest());

@@ -1,40 +1,54 @@
-### GET request to example server
-GET https://examples.http-client.intellij.net/get
-    ?generated-in=IntelliJ IDEA
+# Manual requests for the IntelliJ / VS Code HTTP client. The full, current list is in Swagger UI:
+# http://localhost:8080/swagger-ui.html
+@host = http://localhost:8080
 
-###
-GET http://localhost:8080/api/alerts/engineer/1
+### Teams
+GET {{host}}/api/v1/teams
 
+### Engineers
+GET {{host}}/api/v1/engineers
 
-###
-POST http://localhost:8080/api/pagerduty/test
+### Alerts for one engineer
+GET {{host}}/api/v1/alerts/engineer/1
 
-###
-GET http://localhost:8080/api/pagerduty/incidents
+### Alerts filtered by severity and date
+GET {{host}}/api/v1/alerts/filter?severity=P1&from=2016-01-01&to=2016-12-31
 
-###
-GET http://localhost:8080/api/pagerduty/users
+### Paging history of one alert
+GET {{host}}/api/v1/alerts/1/assignments
 
-###
-POST http://localhost:8080/api/pagerduty/sync
+### On-call shifts
+GET {{host}}/api/v1/oncall?from=2026-09-01&to=2026-09-30
 
-###
-POST http://localhost:8080/api/pagerduty/resolve/Q2VB75DI6CDPAZ?email=23r21a3309@mlrit.ac.in
+### Fairness (2016 data needs an explicit window)
+GET {{host}}/api/v1/scores/fairness?start=2016-01-01&end=2016-12-31
 
-###
-POST http://localhost:8080/api/webhook/pagerduty
+### Burnout
+GET {{host}}/api/v1/scores/burnout?days=30
 
-###
-POST http://localhost:8080/api/webhook/pagerduty
+### Time of day
+GET {{host}}/api/v1/scores/timeofday?days=30
 
-###
-GET  http://localhost:8080/api/burnout
+### All scores for one engineer
+GET {{host}}/api/v1/scores/engineers/1?days=90
 
-###
-GET http://localhost:8080/api/combined-score
+### PagerDuty incidents (live, not stored)
+GET {{host}}/api/v1/pagerduty/incidents?limit=25
 
-###
-GET http://localhost:8080/api/timeofday
+### PagerDuty users
+GET {{host}}/api/v1/pagerduty/users
 
-###
-GET http://localhost:8080/api/engineer/Biradar%20Srikanth
+### Sync incidents now
+POST {{host}}/api/v1/pagerduty/sync
+
+### Backfill a year of on-call shifts
+POST {{host}}/api/v1/pagerduty/sync/oncalls?days=365
+
+### Resolve an incident as a PagerDuty user
+POST {{host}}/api/v1/pagerduty/resolve/INCIDENT_ID?email=engineer@example.com
+
+### Webhook ping (unversioned path; real events need a valid X-PagerDuty-Signature)
+POST {{host}}/api/webhook/pagerduty
+Content-Type: application/json
+
+{"event": {"event_type": "pagey.ping"}}
