@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.team;
 
 import com.example.fairnesstracker.security.AccessPolicy;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
@@ -26,22 +27,26 @@ public class TeamController {
         this.access = access;
     }
 
+    @Operation(operationId = "listTeams")
     @GetMapping
     public List<TeamResponse> getAll() {
         return teamService.getAll();
     }
 
+    @Operation(operationId = "getTeam")
     @GetMapping("/{id}")
     public TeamResponse getById(@PathVariable Long id) {
         return teamService.getById(id);
     }
 
+    @Operation(operationId = "createTeam")
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<TeamResponse> create(@Valid @RequestBody TeamRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(teamService.create(request));
     }
 
+    @Operation(operationId = "updateTeam")
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public TeamResponse update(@PathVariable Long id, @Valid @RequestBody TeamRequest request) {
@@ -49,6 +54,7 @@ public class TeamController {
         return teamService.update(id, request);
     }
 
+    @Operation(operationId = "deleteTeam")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

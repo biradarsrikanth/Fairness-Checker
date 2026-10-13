@@ -40,7 +40,7 @@ public class AuditController {
         this.mapper = mapper;
     }
 
-    @Operation(summary = "List audit entries", description = "Newest first. Filters combine with AND.")
+    @Operation(operationId = "listAuditEntries", summary = "List audit entries", description = "Newest first. Filters combine with AND.")
     @GetMapping
     @Transactional(readOnly = true)
     public PageResponse<AuditEntryResponse> list(

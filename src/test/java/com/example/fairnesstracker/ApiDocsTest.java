@@ -10,6 +10,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -109,11 +111,34 @@ class ApiDocsTest {
                 .containsExactlyInAnyOrder("email", "fullName", "role");
     }
 
+    // They name the generated client's functions; springdoc's defaults (method names, "_1" on a clash) would
+    // rename them whenever a controller method is added or renamed
+    @Test
+    void everyOperationHasItsOwnStableId() throws Exception {
+        List<String> ids = new ArrayList<>();
+        spec().path("paths").forEach(path -> path.forEach(operation ->
+                ids.add(operation.path("operationId").asString())));
+
+        assertThat(ids).doesNotHaveDuplicates().allMatch(id -> id.matches("[a-z][A-Za-z]+"));
+        assertThat(ids).contains("listTeams", "getAnalyticsSummary", "refreshSession", "listSyncRuns",
+                "receivePagerDutyWebhook");
+    }
+
     @Test
     void responsesAreJsonAndErrorsProblemDetails() throws Exception {
         JsonNode responses = spec().at("/paths/~1api~1v1~1auth~1login/post/responses");
         assertThat(responses.at("/200/content").propertyNames()).containsExactly("application/json");
         assertThat(responses.at("/default/content").propertyNames()).containsExactly("application/problem+json");
+    }
+
+    // fairness-web generates its client from this file (GATEWAY_SPEC=../Fairness-Checker/target/openapi.json
+    // npm run api), so no gateway has to run for it
+    @Test
+    void savesTheSpecForTheWebClient() throws Exception {
+        Path file = Path.of("target", "openapi.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(spec()));
+        assertThat(file).isNotEmptyFile();
     }
 
     @Test

@@ -40,6 +40,7 @@ public class PagerDutyController {
         this.audit = audit;
     }
 
+    @Operation(operationId = "listPagerDutyIncidents")
     @GetMapping("/incidents")
     public PagerDutyResponse getIncidents(
             @RequestParam(defaultValue = "0") @Min(0) int offset,
@@ -47,12 +48,13 @@ public class PagerDutyController {
         return pagerDutyService.getIncidents(offset, limit);
     }
 
+    @Operation(operationId = "listPagerDutyUsers")
     @GetMapping("/users")
     public PagerDutyUsersResponse getUsers() {
         return pagerDutyService.getUsers();
     }
 
-    @Operation(summary = "Sync incidents now",
+    @Operation(operationId = "syncIncidents", summary = "Sync incidents now",
             description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another incident sync is running.")
     @PostMapping("/sync")
     public SyncResult syncIncidents() {
@@ -65,7 +67,7 @@ public class PagerDutyController {
     }
 
     // e.g. ?days=365 once to backfill a year of shifts; the scheduler keeps the recent ones current
-    @Operation(summary = "Sync on-call shifts now",
+    @Operation(operationId = "syncOncalls", summary = "Sync on-call shifts now",
             description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another on-call sync is running.")
     @PostMapping("/sync/oncalls")
     public SyncResult.Oncall syncOncalls(@RequestParam(defaultValue = "7") @Min(1) @Max(730) int days) {
@@ -78,6 +80,7 @@ public class PagerDutyController {
     }
 
     // Errors go through GlobalExceptionHandler, which doesn't leak PagerDuty's response to the caller
+    @Operation(operationId = "resolvePagerDutyIncident")
     @PostMapping("/resolve/{incidentId}")
     public ResponseEntity<String> resolveIncident(@PathVariable String incidentId,
                                                   @RequestParam @Email String email) {

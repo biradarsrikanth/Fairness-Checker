@@ -42,7 +42,7 @@ public class AuthController {
         this.rateLimiter = rateLimiter;
     }
 
-    @Operation(summary = "Sign in", description = "Returns an access token and sets the refresh cookie. "
+    @Operation(operationId = "login", summary = "Sign in", description = "Returns an access token and sets the refresh cookie. "
             + "By default, 5 wrong passwords in a row lock the account for 15 minutes (423), and a client IP "
             + "gets at most 10 attempts per minute (429). Both come with Retry-After.")
     @SecurityRequirements
@@ -53,7 +53,7 @@ public class AuthController {
         return respond(authService.login(request.email(), request.password(), client(httpRequest)));
     }
 
-    @Operation(summary = "Get a new access token",
+    @Operation(operationId = "refreshSession", summary = "Get a new access token",
             description = "Uses the refresh cookie, which is replaced. On failure the cookie is cleared: sign in again.")
     @SecurityRequirement(name = OpenApiConfig.REFRESH_COOKIE)
     @PostMapping("/refresh")
@@ -67,7 +67,7 @@ public class AuthController {
         }
     }
 
-    @Operation(summary = "Sign out", description = "Ends this session (every token from this sign-in) and clears the cookie.")
+    @Operation(operationId = "logout", summary = "Sign out", description = "Ends this session (every token from this sign-in) and clears the cookie.")
     @SecurityRequirement(name = OpenApiConfig.REFRESH_COOKIE)
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
@@ -75,13 +75,13 @@ public class AuthController {
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clear()).build();
     }
 
-    @Operation(summary = "The signed-in user, with the teams they can see")
+    @Operation(operationId = "getCurrentUser", summary = "The signed-in user, with the teams they can see")
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal Jwt jwt) {
         return authService.me(userId(jwt));
     }
 
-    @Operation(summary = "Change the password",
+    @Operation(operationId = "changePassword", summary = "Change the password",
             description = "Signs out every other session and returns a fresh one.")
     @PostMapping("/change-password")
     public ResponseEntity<TokenResponse> changePassword(@AuthenticationPrincipal Jwt jwt,

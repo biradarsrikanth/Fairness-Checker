@@ -39,6 +39,7 @@ public class AlertEventController {
         this.access = access;
     }
 
+    @Operation(operationId = "createAlert")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<AlertResponse> saveAlert(@Valid @RequestBody AlertRequest request) {
@@ -46,7 +47,7 @@ public class AlertEventController {
         return ResponseEntity.status(HttpStatus.CREATED).body(alertService.saveAlert(request));
     }
 
-    @Operation(summary = "List alerts",
+    @Operation(operationId = "listAlerts", summary = "List alerts",
             description = "Filters combine with AND. Sort by triggeredAt (default, newest first), resolvedAt, "
                     + "severity or status.")
     @GetMapping
@@ -56,6 +57,7 @@ public class AlertEventController {
         return alertService.list(filter, pageable, access.scope());
     }
 
+    @Operation(operationId = "getAlert")
     @GetMapping("/{id}")
     public AlertResponse getById(@PathVariable Long id) {
         access.requireAlert(id);
@@ -63,12 +65,14 @@ public class AlertEventController {
     }
 
     // Paging history: who was paged, escalated to or reassigned, in order
+    @Operation(operationId = "listAlertAssignments")
     @GetMapping("/{id}/assignments")
     public List<AlertResponse.Assignment> getAssignments(@PathVariable Long id) {
         access.requireAlert(id);
         return alertService.getAssignments(id);
     }
 
+    @Operation(operationId = "deleteAlert")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {

@@ -32,7 +32,7 @@ public class ScoreController {
     }
 
     // Team-level: an engineer sees their team's figures but only their own row
-    @Operation(description = "Admins may omit team (all teams); others get their only team, or must name one.")
+    @Operation(operationId = "getFairnessScores", description = "Admins may omit team (all teams); others get their only team, or must name one.")
     @GetMapping("/fairness")
     public Scores.FairnessReport fairness(@Valid @ParameterObject ScoreQuery query) {
         Scores.FairnessReport report = scoringClient.fairness(access.teamScoped(query, true));
@@ -41,14 +41,14 @@ public class ScoreController {
     }
 
     // Peers' burnout is private: managers see their teams', engineers only their own (/engineers/{id})
-    @Operation(description = "Admins and managers only. Admins may omit team; managers get their only team, "
+    @Operation(operationId = "getBurnoutScores", description = "Admins and managers only. Admins may omit team; managers get their only team, "
             + "or must name one.")
     @GetMapping("/burnout")
     public Scores.BurnoutReport burnout(@Valid @ParameterObject ScoreQuery query) {
         return scoringClient.burnout(access.teamScoped(query, false));
     }
 
-    @Operation(description = "Admins may omit team (all teams); others get their only team, or must name one.")
+    @Operation(operationId = "getTimeOfDayScores", description = "Admins may omit team (all teams); others get their only team, or must name one.")
     @GetMapping("/timeofday")
     public Scores.TimeOfDayReport timeOfDay(@Valid @ParameterObject ScoreQuery query) {
         Scores.TimeOfDayReport report = scoringClient.timeOfDay(access.teamScoped(query, true));
@@ -56,6 +56,7 @@ public class ScoreController {
         return own == null ? report : report.onlyEngineer(own);
     }
 
+    @Operation(operationId = "getEngineerScores")
     @GetMapping("/engineers/{engineerId}")
     public Scores.EngineerReport engineer(@PathVariable @Positive long engineerId, @Valid @ParameterObject ScoreQuery query) {
         access.requireEngineer(engineerId);

@@ -38,19 +38,20 @@ public class UserController {
         this.userService = userService;
     }
 
-    @Operation(summary = "List users", description = "Sort by email (default), fullName, role or lastLoginAt.")
+    @Operation(operationId = "listUsers", summary = "List users", description = "Sort by email (default), fullName, role or lastLoginAt.")
     @GetMapping
     public PageResponse<UserAccountResponse> list(@Valid @ParameterObject UserFilter filter,
                                                   @ParameterObject @SortDefault("email") Pageable pageable) {
         return userService.list(filter, pageable);
     }
 
+    @Operation(operationId = "getUser")
     @GetMapping("/{id}")
     public UserAccountResponse get(@PathVariable long id) {
         return userService.get(id);
     }
 
-    @Operation(summary = "Create a user",
+    @Operation(operationId = "createUser", summary = "Create a user",
             description = "Returns a one-time password, shown only here; the user must change it at first sign-in.")
     @PostMapping
     public ResponseEntity<TemporaryPasswordResponse> create(@Valid @RequestBody CreateUserRequest request) {
@@ -59,31 +60,32 @@ public class UserController {
                 .body(userService.create(request));
     }
 
-    @Operation(summary = "Update a user", description = "Changing the role or disabling the user ends their sessions.")
+    @Operation(operationId = "updateUser", summary = "Update a user", description = "Changing the role or disabling the user ends their sessions.")
     @PutMapping("/{id}")
     public UserAccountResponse update(@PathVariable long id, @Valid @RequestBody UpdateUserRequest request) {
         return userService.update(id, request);
     }
 
-    @Operation(summary = "Set the teams a manager can see", description = "Replaces the list; only for MANAGER logins.")
+    @Operation(operationId = "setUserTeams", summary = "Set the teams a manager can see", description = "Replaces the list; only for MANAGER logins.")
     @PutMapping("/{id}/teams")
     public UserAccountResponse setTeams(@PathVariable long id, @Valid @RequestBody TeamAccessRequest request) {
         return userService.setTeams(id, request.teamIds());
     }
 
-    @Operation(summary = "Reset a user's password",
+    @Operation(operationId = "resetUserPassword", summary = "Reset a user's password",
             description = "Returns a new one-time password, ends the user's sessions and lifts any lock.")
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<TemporaryPasswordResponse> resetPassword(@PathVariable long id) {
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(userService.resetPassword(id));
     }
 
-    @Operation(summary = "Lift a lock from failed sign-ins")
+    @Operation(operationId = "unlockUser", summary = "Lift a lock from failed sign-ins")
     @PostMapping("/{id}/unlock")
     public UserAccountResponse unlock(@PathVariable long id) {
         return userService.unlock(id);
     }
 
+    @Operation(operationId = "deleteUser")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
         userService.delete(id);

@@ -32,6 +32,7 @@ public class EngineerController {
         this.access = access;
     }
 
+    @Operation(operationId = "createEngineer")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<EngineerResponse> saveEngineer(@Valid @RequestBody EngineerRequest request){
@@ -39,7 +40,7 @@ public class EngineerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(engineerService.saveEngineer(request));
     }
 
-    @Operation(summary = "List engineers", description = "Sort by name (default) or email.")
+    @Operation(operationId = "listEngineers", summary = "List engineers", description = "Sort by name (default) or email.")
     @GetMapping
     public PageResponse<EngineerResponse> list(@Valid @ParameterObject EngineerFilter filter,
                                                @ParameterObject @SortDefault("name") Pageable pageable) {
@@ -47,12 +48,14 @@ public class EngineerController {
     }
 
 
+    @Operation(operationId = "getEngineer")
     @GetMapping("/{id}")
     public EngineerResponse getById(@PathVariable Long id){
         access.requireEngineer(id);
         return engineerService.getById(id);
     }
 
+    @Operation(operationId = "updateEngineer")
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public EngineerResponse updateEngineer(@PathVariable Long id, @Valid @RequestBody EngineerRequest request){
@@ -62,6 +65,7 @@ public class EngineerController {
         return engineerService.updateEngineer(id, request);
     }
 
+    @Operation(operationId = "deleteEngineer")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Void> deleteEngineer(@PathVariable Long id) {

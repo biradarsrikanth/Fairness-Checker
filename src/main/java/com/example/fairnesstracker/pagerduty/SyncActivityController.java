@@ -73,7 +73,7 @@ public class SyncActivityController {
         this.syncRateMs = syncRateMs;
     }
 
-    @Operation(summary = "List sync runs", description = "Newest first. Filters combine with AND.")
+    @Operation(operationId = "listSyncRuns", summary = "List sync runs", description = "Newest first. Filters combine with AND.")
     @GetMapping("/sync-runs")
     @Transactional(readOnly = true)
     public PageResponse<SyncRunResponse> listRuns(
@@ -89,13 +89,14 @@ public class SyncActivityController {
                 Sorting.restrict(pageable, RUN_SORTS)).map(mapper::toResponse));
     }
 
+    @Operation(operationId = "getSyncRun")
     @GetMapping("/sync-runs/{id}")
     @Transactional(readOnly = true)
     public SyncRunResponse getRun(@PathVariable long id) {
         return runs.findById(id).map(mapper::toResponse).orElseThrow(() -> ResourceNotFoundException.of("Sync run", id));
     }
 
-    @Operation(summary = "Latest sync of each kind", description = "Whether one is running, the last run and the "
+    @Operation(operationId = "getSyncStatus", summary = "Latest sync of each kind", description = "Whether one is running, the last run and the "
             + "last successful one.")
     @GetMapping("/sync-status")
     @Transactional(readOnly = true)
@@ -104,7 +105,7 @@ public class SyncActivityController {
                 kindStatus(SyncRun.Kind.INCIDENTS), kindStatus(SyncRun.Kind.ONCALLS));
     }
 
-    @Operation(summary = "List received webhooks", description = "Newest first, without their bodies. Filters "
+    @Operation(operationId = "listWebhookEvents", summary = "List received webhooks", description = "Newest first, without their bodies. Filters "
             + "combine with AND.")
     @GetMapping("/webhook-events")
     @Transactional(readOnly = true)
@@ -125,6 +126,7 @@ public class SyncActivityController {
                 Sorting.restrict(pageable, EVENT_SORTS)).map(mapper::toResponse));
     }
 
+    @Operation(operationId = "getWebhookEvent")
     @GetMapping("/webhook-events/{id}")
     @Transactional(readOnly = true)
     public WebhookEventDetail getEvent(@PathVariable long id) {
@@ -132,7 +134,7 @@ public class SyncActivityController {
                 .orElseThrow(() -> ResourceNotFoundException.of("Webhook event", id));
     }
 
-    @Operation(summary = "Apply a received webhook again",
+    @Operation(operationId = "replayWebhookEvent", summary = "Apply a received webhook again",
             description = "For a FAILED event, or one stuck in RECEIVED. 409 if it was already applied. Answers "
                     + "with the event's new state, or the error that made it fail again.")
     @PostMapping("/webhook-events/{id}/replay")
