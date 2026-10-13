@@ -86,8 +86,45 @@ class ApiDocsTest {
     }
 
     @Test
+    void recordFieldsAreRequiredUnlessNullable() throws Exception {
+        JsonNode schemas = spec().path("components").path("schemas");
+
+        JsonNode user = schemas.path("UserResponse");
+        assertThat(names(user.path("required")))
+                .containsExactlyInAnyOrder("id", "email", "fullName", "role", "teams", "mustChangePassword");
+        assertThat(names(user.at("/properties/engineerId/type"))).containsExactly("integer", "null");
+        assertThat(user.at("/properties/email/type").asString()).isEqualTo("string");
+        // A generic record, named after its type argument
+        assertThat(names(schemas.at("/PageResponseAlertResponse/required")))
+                .containsExactlyInAnyOrder("content", "page", "size", "totalElements", "totalPages");
+
+        // A nullable reference: the referenced schema, or null
+        JsonNode lastRun = schemas.at("/KindStatus/properties/lastRun");
+        assertThat(lastRun.at("/oneOf/0/$ref").asString()).isEqualTo("#/components/schemas/SyncRunResponse");
+        assertThat(lastRun.at("/oneOf/1/type").asString()).isEqualTo("null");
+        assertThat(lastRun.path("description").asString()).isEqualTo("Null before the first sync");
+
+        // Request bodies: a nullable component may be left out
+        assertThat(names(schemas.at("/CreateUserRequest/required")))
+                .containsExactlyInAnyOrder("email", "fullName", "role");
+    }
+
+    @Test
+    void responsesAreJsonAndErrorsProblemDetails() throws Exception {
+        JsonNode responses = spec().at("/paths/~1api~1v1~1auth~1login/post/responses");
+        assertThat(responses.at("/200/content").propertyNames()).containsExactly("application/json");
+        assertThat(responses.at("/default/content").propertyNames()).containsExactly("application/problem+json");
+    }
+
+    @Test
     void servesSwaggerUi() throws Exception {
         mvc.perform(get("/swagger-ui.html")).andExpect(status().is3xxRedirection());
+    }
+
+    private static List<String> names(JsonNode array) {
+        List<String> names = new ArrayList<>();
+        array.forEach(item -> names.add(item.asString()));
+        return names;
     }
 
     private JsonNode spec() throws Exception {

@@ -1,5 +1,7 @@
 package com.example.fairnesstracker.scoring.dto;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -24,12 +26,12 @@ public final class Scores {
     /** {@code oncallHours} and {@code loadPerOncallHour} are null when there is no shift data. */
     public record EngineerLoad(long engineerId, String name, String team, int alertCount,
                                int escalationsReceived, double load, double sharePct,
-                               Double oncallHours, Double loadPerOncallHour) {
+                               @Nullable Double oncallHours, @Nullable Double loadPerOncallHour) {
     }
 
     /** {@code basis}: ONCALL_ROTATION (compares people on call) or ACTIVE_ENGINEERS (no shift data). */
-    public record FairnessReport(Window window, String team, String basis, double gini, String label,
-                                 Double rotationGini, String confidence, int alertCount,
+    public record FairnessReport(Window window, @Nullable String team, String basis, double gini, String label,
+                                 @Nullable Double rotationGini, String confidence, int alertCount,
                                  List<EngineerLoad> engineers) {
 
         /** The team's figures, with only this engineer's row: peers' loads aren't shown to an engineer. */
@@ -45,10 +47,10 @@ public final class Scores {
     public record BurnoutScore(long engineerId, String name, String team, int alertCount,
                                int escalationsReceived, double score, String risk, double nightPct,
                                double eveningPct, double weekendPct, double trendRatio,
-                               Double medianAckMinutes, Double oncallHours, BurnoutComponents components) {
+                               @Nullable Double medianAckMinutes, @Nullable Double oncallHours, BurnoutComponents components) {
     }
 
-    public record BurnoutReport(Window window, String team, List<BurnoutScore> engineers) {
+    public record BurnoutReport(Window window, @Nullable String team, List<BurnoutScore> engineers) {
     }
 
     public record TimeOfDayCounts(int night, int morning, int afternoon, int evening) {
@@ -58,7 +60,7 @@ public final class Scores {
                                     int night, int morning, int afternoon, int evening) {
     }
 
-    public record TimeOfDayReport(Window window, String team, List<EngineerTimeOfDay> engineers) {
+    public record TimeOfDayReport(Window window, @Nullable String team, List<EngineerTimeOfDay> engineers) {
 
         public TimeOfDayReport onlyEngineer(long engineerId) {
             return new TimeOfDayReport(window, team,
@@ -68,10 +70,10 @@ public final class Scores {
 
     /** One calendar week or month; {@code end} is exclusive. {@code averageBurnout} is null when nobody is compared. */
     public record TrendPeriod(OffsetDateTime start, OffsetDateTime end, int alertCount, double gini, String label,
-                              String confidence, Double averageBurnout, int highRiskCount) {
+                              String confidence, @Nullable Double averageBurnout, int highRiskCount) {
     }
 
-    public record TrendReport(Window window, String team, String granularity, List<TrendPeriod> periods) {
+    public record TrendReport(Window window, @Nullable String team, String granularity, List<TrendPeriod> periods) {
     }
 
     public record EngineerReport(Window window, EngineerRef engineer, boolean active, BurnoutScore burnout,

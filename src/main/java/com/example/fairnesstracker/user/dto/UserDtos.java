@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,8 +24,8 @@ public final class UserDtos {
             @NotBlank @Email @Size(max = 255) String email,
             @NotBlank @Size(max = 255) String fullName,
             @NotNull Role role,
-            @Positive Long engineerId,
-            Set<@NotNull @Positive Long> teamIds) {
+            @Positive @Nullable Long engineerId,
+            @Nullable Set<@NotNull @Positive Long> teamIds) {
     }
 
     @Schema(description = "Team access is changed separately (PUT /users/{id}/teams); leaving MANAGER clears it")
@@ -32,7 +33,7 @@ public final class UserDtos {
             @NotBlank @Email @Size(max = 255) String email,
             @NotBlank @Size(max = 255) String fullName,
             @NotNull Role role,
-            @Positive Long engineerId,
+            @Positive @Nullable Long engineerId,
             @NotNull Boolean enabled) {
     }
 
@@ -44,10 +45,10 @@ public final class UserDtos {
     }
 
     @Schema(description = "A login as admins see it. lockedUntil: set while locked after failed sign-ins")
-    public record UserAccountResponse(Long id, String email, String fullName, Role role, Long engineerId,
-                                      String engineerName, List<TeamRef> teams, boolean enabled,
-                                      boolean mustChangePassword, Instant lockedUntil, Instant lastLoginAt,
-                                      Instant passwordChangedAt) {
+    public record UserAccountResponse(Long id, String email, String fullName, Role role, @Nullable Long engineerId,
+                                      @Nullable String engineerName, List<TeamRef> teams, boolean enabled,
+                                      boolean mustChangePassword, @Nullable Instant lockedUntil, @Nullable Instant lastLoginAt,
+                                      @Nullable Instant passwordChangedAt) {
     }
 
     @Schema(description = "Shown once: give it to the user, who must change it at first sign-in")

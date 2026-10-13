@@ -4,6 +4,7 @@ import com.example.fairnesstracker.common.web.RequestIdFilter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -34,7 +35,7 @@ public record ApiError(
         @Schema(description = "Problems with individual fields or parameters; empty when none")
         List<FieldError> errors,
         @Schema(description = "Same value as the X-Request-ID response header; quote it when reporting a problem")
-        String requestId,
+        @Nullable String requestId,
         Instant timestamp
 ) {
 
@@ -43,7 +44,7 @@ public record ApiError(
     /** {@code field} is the JSON property or query parameter; null for problems with the request as a whole. */
     @Schema(name = "FieldError")
     public record FieldError(
-            @Schema(example = "name") String field,
+            @Schema(example = "name") @Nullable String field,
             @Schema(example = "must not be blank") String message) {
     }
 

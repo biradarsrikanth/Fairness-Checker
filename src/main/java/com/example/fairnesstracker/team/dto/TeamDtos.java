@@ -2,6 +2,7 @@ package com.example.fairnesstracker.team.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 
 public final class TeamDtos {
 
@@ -11,7 +12,7 @@ public final class TeamDtos {
     /** {@code timezone} is an IANA name such as Asia/Kolkata; defaults to Asia/Kolkata. */
     public record TeamRequest(
             @NotBlank @Size(max = 255) String name,
-            @Size(max = 64) String timezone
+            @Size(max = 64) @Nullable String timezone
     ) {
     }
 

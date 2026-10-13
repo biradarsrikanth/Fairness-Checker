@@ -4,6 +4,7 @@ import com.example.fairnesstracker.scoring.dto.Scores;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
@@ -33,19 +34,19 @@ public final class AnalyticsDtos {
 
     @Schema(description = "A figure for the window and the same-length period before it. changePct is null when "
             + "there's nothing to compare with")
-    public record Kpi(Double value, Double previous, Double changePct) {
+    public record Kpi(@Nullable Double value, @Nullable Double previous, @Nullable Double changePct) {
     }
 
     @Schema(description = "gini, fairnessLabel and highRiskEngineers come from the scorer and are null when "
             + "scores aren't available (see scores); highRiskEngineers is also null for engineers")
-    public record Summary(Window window, Window previousWindow, String team, Kpi alerts, Kpi mttaMinutes,
-                          Kpi mttrMinutes, Kpi afterHoursPct, Kpi escalationRatePct, Kpi gini, String fairnessLabel,
-                          Kpi highRiskEngineers, ScoresStatus scores) {
+    public record Summary(Window window, Window previousWindow, @Nullable String team, Kpi alerts, Kpi mttaMinutes,
+                          Kpi mttrMinutes, Kpi afterHoursPct, Kpi escalationRatePct, @Nullable Kpi gini, @Nullable String fairnessLabel,
+                          @Nullable Kpi highRiskEngineers, ScoresStatus scores) {
     }
 
     @Schema(description = "available: whether the scorer's figures are included. reason when not: "
             + "SCORER_UNAVAILABLE, or SEVERAL_TEAMS (pick one team to get scores)")
-    public record ScoresStatus(boolean available, String reason) {
+    public record ScoresStatus(boolean available, @Nullable String reason) {
 
         public static final ScoresStatus AVAILABLE = new ScoresStatus(true, null);
     }
@@ -57,7 +58,7 @@ public final class AnalyticsDtos {
     public record SeriesPoint(LocalDate start, int total, SeverityCounts bySeverity) {
     }
 
-    public record TimeSeries(Window window, String team, String granularity, List<SeriesPoint> points) {
+    public record TimeSeries(Window window, @Nullable String team, String granularity, List<SeriesPoint> points) {
     }
 
     @Schema(description = "dayOfWeek: 1 = Monday ... 7 = Sunday; hour 0-23. Both in each team's own timezone")
@@ -65,16 +66,16 @@ public final class AnalyticsDtos {
     }
 
     @Schema(description = "All 168 weekday-hour cells, zeros included")
-    public record Heatmap(Window window, String team, int max, List<HeatmapCell> cells) {
+    public record Heatmap(Window window, @Nullable String team, int max, List<HeatmapCell> cells) {
     }
 
-    public record ServiceStats(Long serviceId, String name, int alertCount, Double mttrMinutes, double afterHoursPct) {
+    public record ServiceStats(@Nullable Long serviceId, String name, int alertCount, @Nullable Double mttrMinutes, double afterHoursPct) {
     }
 
-    public record TopServices(Window window, String team, List<ServiceStats> services) {
+    public record TopServices(Window window, @Nullable String team, List<ServiceStats> services) {
     }
 
-    public record Trend(Window window, String team, String granularity, List<Scores.TrendPeriod> periods,
+    public record Trend(Window window, @Nullable String team, String granularity, List<Scores.TrendPeriod> periods,
                         ScoresStatus scores) {
     }
 

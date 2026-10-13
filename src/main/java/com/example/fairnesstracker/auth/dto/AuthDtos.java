@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +38,7 @@ public final class AuthDtos {
 
     @Schema(description = "The signed-in user. teams: the teams they can see (every team for an ADMIN, the "
             + "managed ones for a MANAGER, their own for an ENGINEER)")
-    public record UserResponse(Long id, String email, String fullName, Role role, Long engineerId,
+    public record UserResponse(Long id, String email, String fullName, Role role, @Nullable Long engineerId,
                                List<TeamRef> teams, boolean mustChangePassword) {
     }
 }
