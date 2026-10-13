@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="${header.title}">Engineer report</title>
+  <style th:replace="~{layout :: styles}"></style>
+  <style>
+    .score { font-size: 28pt; font-weight: 700; margin-right: 4mm; }
+    .stats { width: 100%; border-collapse: separate; border-spacing: 2mm; margin: 0 -2mm 4mm -2mm; }
+    .stat { border: 0.6pt solid #c3c2b7; border-radius: 2mm; padding: 2mm 3mm; width: 20%; vertical-align: top; }
+    .stat .label { font-size: 8pt; color: #52514e; }
+    .stat .value { font-size: 13pt; font-weight: 700; }
+    .part { margin-bottom: 3mm; }
+    .bar { height: 2.2mm; background: #e1e0d9; border-radius: 1.1mm; margin: 1mm 0 0.6mm 0; }
+    .bar div { height: 2.2mm; background: #2a78d6; border-radius: 1.1mm; }
+    .exposure td { padding-right: 8mm; }
+    .exposure .value { font-size: 12pt; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div th:replace="~{layout :: footer}"></div>
+  <div th:replace="~{layout :: title}"></div>
+
+  <section>
+    <h2>Burnout</h2>
+    <p>
+      <span class="score" th:text="${score}">64</span>
+      <span th:class="${'risk ' + riskClass}" th:text="${risk + ' risk'}">High risk</span>
+      <span class="muted" th:if="${!active}"> · inactive</span>
+    </p>
+    <table class="stats">
+      <tr>
+        <td class="stat" th:each="s : ${stats}">
+          <div class="label" th:text="${s.label}">Alerts</div>
+          <div class="value" th:text="${s.value}">12</div>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>What makes up the score</h2>
+    <p class="muted small"
+       th:text="${score + ' of 100 points' + (scaled != null ? ', scaled by ' + scaled + ' for having fewer than 5 alerts' : '')}">parts</p>
+    <div class="part" th:each="p : ${parts}">
+      <div><b th:text="${p.label}">Exposure</b><span class="muted" th:text="${' · ' + p.points + ' of ' + p.weight + ' points'}">35 of 50</span></div>
+      <div class="bar"><div th:style="${'width: ' + p.percent + '%'}"></div></div>
+      <div class="muted small" th:text="${p.description}">desc</div>
+    </div>
+    <table class="exposure">
+      <tr>
+        <td th:each="e : ${exposure}">
+          <div class="muted small" th:text="${e.label}">Night</div>
+          <div class="value" th:text="${e.value}">40%</div>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <section th:if="${timeOfDayChart}">
+    <h2>Time of day</h2>
+    <p class="muted small">Alerts by part of the day, in the team's local time</p>
+    <img class="chart" th:src="${timeOfDayChart}" alt="Alerts by part of the day"/>
+  </section>
+
+  <section>
+    <h2>Latest alerts</h2>
+    <p class="muted small"
+       th:text="${alerts.isEmpty() ? 'No alerts in these dates.' : 'The latest ' + alerts.size() + ' of ' + alertTotal + '; the Excel report lists them all. On call: ' + shiftCount + ' shift(s), ' + shiftHours + ' hours.'}">latest</p>
+    <table class="data" th:if="${!alerts.isEmpty()}">
+      <thead><tr><th>Triggered</th><th>Alert</th><th>Service</th><th>Severity</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr th:each="a : ${alerts}">
+          <td th:text="${a.triggered}">when</td><td th:text="${a.title}">title</td><td th:text="${a.service}">svc</td>
+          <td th:text="${a.severity}">P2</td><td th:text="${a.status}">Resolved</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>

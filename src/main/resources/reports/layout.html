@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <!-- Shared by the reports. openhtmltopdf reads XHTML: close every tag, no named entities -->
+  <style th:fragment="styles">
+    @page {
+      size: A4;
+      margin: 16mm 14mm 18mm 14mm;
+      @bottom-left {
+        content: element(footer);
+      }
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'DejaVu Sans';
+        font-size: 8pt;
+        color: #898781;
+      }
+    }
+    body { font-family: 'DejaVu Sans'; font-size: 9pt; color: #1b1b1f; line-height: 1.35; }
+    #footer { position: running(footer); font-size: 8pt; color: #898781; }
+    h1 { font-size: 18pt; font-weight: 700; margin: 0 0 2mm 0; }
+    h2 { font-size: 12pt; font-weight: 700; margin: 0 0 1mm 0; }
+    p { margin: 0 0 2mm 0; }
+    .muted { color: #52514e; }
+    .small { font-size: 8pt; }
+    .meta { margin-bottom: 5mm; color: #52514e; }
+    .meta td { padding: 0 6mm 0.5mm 0; }
+    .meta td.key { color: #898781; }
+    section { margin-bottom: 6mm; page-break-inside: avoid; }
+    section.long { page-break-inside: auto; }
+    .notice { padding: 2mm 3mm; background: #e8eefb; border-radius: 2mm; margin-bottom: 5mm; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+    table.data th { text-align: left; font-weight: 700; font-size: 8pt; color: #52514e; border-bottom: 0.8pt solid #c3c2b7; padding: 1mm 1.5mm; }
+    table.data td { border-bottom: 0.5pt solid #e1e0d9; padding: 1mm 1.5mm; vertical-align: top; }
+    table.data tr { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+    .num, table.data th.num { text-align: right; }
+    .chart { width: 100%; margin-top: 2mm; }
+    .risk { font-weight: 700; }
+    .risk.high { color: #b42f2f; }
+    .risk.medium { color: #8a5a00; }
+    .risk.low { color: #006300; }
+    .worse { color: #b42f2f; }
+    .better { color: #006300; }
+  </style>
+</head>
+<body>
+  <!-- The report's title block -->
+  <div th:fragment="title">
+    <h1 th:text="${header.title}">Fairness report</h1>
+    <table class="meta">
+      <tr><td class="key">Covers</td><td th:text="${header.scope}">SRE</td></tr>
+      <tr><td class="key">Dates</td><td th:text="${header.dates + ' (' + header.timezone + ')'}">dates</td></tr>
+      <tr><td class="key">Generated</td><td th:text="${header.generated}">when</td></tr>
+    </table>
+  </div>
+  <div th:fragment="footer" id="footer" th:text="${header.title + ' · ' + header.scope + ' · ' + header.dates}">footer</div>
+</body>
+</html>

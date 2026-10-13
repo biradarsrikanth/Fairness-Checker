@@ -35,8 +35,34 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <bucket4j.version>8.21.0</bucket4j.version>
         <shedlock.version>7.10.1</shedlock.version>
+        <poi.version>5.5.1</poi.version>
+        <jfreechart.version>1.5.6</jfreechart.version>
+        <!-- The maintained fork of openhtmltopdf (com.openhtmltopdf stopped at 1.0.10 in 2021); PDFBox 3 -->
+        <openhtmltopdf.version>1.1.97</openhtmltopdf.version>
     </properties>
     <dependencies>
+        <!-- Reports: Excel (POI, streaming), PDF from a Thymeleaf template (openhtmltopdf) with JFreeChart
+             charts. Plain Thymeleaf, not the starter: no MVC views, the engine only renders reports -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>${openhtmltopdf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jfree</groupId>
+            <artifactId>jfreechart</artifactId>
+            <version>${jfreechart.version}</version>
+        </dependency>
+
         <!-- Web API: Spring MVC on Tomcat, Jackson 3, bean validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

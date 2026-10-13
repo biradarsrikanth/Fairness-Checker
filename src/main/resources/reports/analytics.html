@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title th:text="${header.title}">Fairness report</title>
+  <style th:replace="~{layout :: styles}"></style>
+  <style>
+    .kpis { width: 100%; border-collapse: separate; border-spacing: 2mm; margin: 0 -2mm 4mm -2mm; }
+    .kpi { border: 0.6pt solid #c3c2b7; border-radius: 2mm; padding: 2mm 3mm; vertical-align: top; width: 25%; }
+    .kpi .label { font-size: 8pt; color: #52514e; }
+    .kpi .value { font-size: 15pt; font-weight: 700; }
+    .kpi .note, .kpi .change { font-size: 7.5pt; }
+    table.heatmap { border-collapse: separate; border-spacing: 0.6mm; margin-top: 2mm; }
+    table.heatmap td { width: 6.6mm; height: 5mm; text-align: center; font-size: 6.5pt; padding: 0; }
+    table.heatmap th { font-size: 6.5pt; color: #898781; font-weight: 400; padding: 0 1mm 0 0; }
+  </style>
+</head>
+<body>
+  <div th:replace="~{layout :: footer}"></div>
+  <div th:replace="~{layout :: title}"></div>
+
+  <p th:if="${scoresNote}" class="notice" th:text="${scoresNote}">Scores are missing</p>
+
+  <section>
+    <h2>Key figures</h2>
+    <p class="muted small" th:text="${'Changes compare with ' + comparedWith + ', the period of the same length before.'}">compared</p>
+    <table class="kpis">
+      <tr th:each="row : ${#numbers.sequence(0, (kpis.size() - 1) / 4)}">
+        <td class="kpi" th:each="kpi, i : ${kpis}" th:if="${i.index / 4 == row}">
+          <div class="label" th:text="${kpi.label}">Alerts</div>
+          <div class="value" th:text="${kpi.value}">20</div>
+          <div class="note muted" th:if="${kpi.note}" th:text="${kpi.note}">note</div>
+          <div class="change" th:if="${kpi.change}">
+            <span th:class="${kpi.worse ? 'worse' : (kpi.change == 'No change' ? 'muted' : 'better')}" th:text="${kpi.change}">+25%</span>
+            <span class="muted" th:if="${kpi.previous}" th:text="${'(was ' + kpi.previous + ')'}">(was 16)</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <section th:if="${alertsChart}">
+    <h2>Alerts over time</h2>
+    <p class="muted small" th:text="${'By severity, per ' + granularity}">per week</p>
+    <img class="chart" th:src="${alertsChart}" alt="Alerts per period by severity"/>
+  </section>
+
+  <section th:if="${giniChart}">
+    <h2>Fairness over time</h2>
+    <p class="muted small" th:text="${'Gini of the on-call load per ' + trendGranularity + '; 0 is perfectly even. Hollow points: few alerts or engineers, indicative only.'}">trend</p>
+    <img class="chart" th:src="${giniChart}" alt="Gini coefficient per period"/>
+  </section>
+
+  <section th:if="${loadChart}">
+    <h2>Load share</h2>
+    <p class="muted small">Each engineer's share of the weighted on-call load</p>
+    <img class="chart" th:src="${loadChart}" alt="Share of the load per engineer"/>
+  </section>
+
+  <section th:if="${heatmap}">
+    <h2>When alerts fire</h2>
+    <p class="muted small">By weekday and hour, in each team's local time; darker is more</p>
+    <table class="heatmap">
+      <tr>
+        <th></th>
+        <th th:each="hour : ${hours}" th:text="${hour}">00</th>
+      </tr>
+      <tr th:each="row : ${heatmap}">
+        <th th:text="${row.day}">Mon</th>
+        <td th:each="cell : ${row.cells}"
+            th:style="${'background-color: ' + cell.background + '; color: ' + (cell.dark ? '#ffffff' : '#1b1b1f')}"
+            th:text="${cell.count > 0 ? cell.count : ''}"></td>
+      </tr>
+    </table>
+  </section>
+
+  <section class="long" th:if="${!burnout.isEmpty()}">
+    <h2>Burnout</h2>
+    <p class="muted small">Score 0–100 from night and weekend pages, relative load and trend</p>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Engineer</th><th th:if="${severalTeams}">Team</th><th class="num">Score</th><th>Risk</th>
+          <th class="num">Alerts</th><th class="num">Night</th><th class="num">Weekend</th><th class="num">Trend</th>
+          <th class="num">Median ack</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="b : ${burnout}">
+          <td th:text="${b.name}">Asha</td><td th:if="${severalTeams}" th:text="${b.team}">SRE</td>
+          <td class="num" th:text="${b.score}">64</td>
+          <td><span th:class="${'risk ' + b.riskClass}" th:text="${b.risk}">High</span></td>
+          <td class="num" th:text="${b.alerts}">12</td><td class="num" th:text="${b.night}">40%</td>
+          <td class="num" th:text="${b.weekend}">25%</td><td class="num" th:text="${b.trend}">×1.5</td>
+          <td class="num" th:text="${b.ack}">4 min</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section th:if="${timeOfDay != null and !timeOfDay.isEmpty()}">
+    <h2>Time of day</h2>
+    <p class="muted small">Alerts per engineer by part of the day, in the team's local time</p>
+    <table class="data">
+      <thead>
+        <tr><th>Engineer</th><th class="num">Morning 06–12</th><th class="num">Afternoon 12–18</th>
+          <th class="num">Evening 18–23</th><th class="num">Night 23–06</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="t : ${timeOfDay}">
+          <td th:text="${t.name}">Asha</td><td class="num" th:text="${t.morning}">1</td>
+          <td class="num" th:text="${t.afternoon}">2</td><td class="num" th:text="${t.evening}">3</td>
+          <td class="num" th:text="${t.night}">4</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section th:if="${!services.isEmpty()}">
+    <h2>Noisiest services</h2>
+    <table class="data">
+      <thead><tr><th>Service</th><th class="num">Alerts</th><th class="num">Time to resolve</th><th class="num">After hours</th></tr></thead>
+      <tbody>
+        <tr th:each="s : ${services}">
+          <td th:text="${s.name}">payments</td><td class="num" th:text="${s.alerts}">9</td>
+          <td class="num" th:text="${s.mttr}">30 min</td><td class="num" th:text="${s.afterHours}">44%</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Latest alerts</h2>
+    <p class="muted small"
+       th:text="${alerts.isEmpty() ? 'No alerts in these dates.' : 'The latest ' + alerts.size() + ' of ' + alertTotal + '; the Excel report lists them all. On call: ' + shiftCount + ' shift(s), ' + shiftHours + ' hours.'}">latest</p>
+    <table class="data" th:if="${!alerts.isEmpty()}">
+      <thead><tr><th>Triggered</th><th>Alert</th><th>Service</th><th>Paged</th><th>Severity</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr th:each="a : ${alerts}">
+          <td th:text="${a.triggered}">when</td><td th:text="${a.title}">title</td><td th:text="${a.service}">svc</td>
+          <td th:text="${a.paged}">who</td><td th:text="${a.severity}">P2</td><td th:text="${a.status}">Resolved</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>
