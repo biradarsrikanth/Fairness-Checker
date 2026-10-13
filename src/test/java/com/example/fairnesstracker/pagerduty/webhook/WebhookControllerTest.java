@@ -12,6 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,13 @@ class WebhookControllerTest {
     @Autowired private TeamRepository teams;
     @Autowired private EngineerRepository engineers;
     @Autowired private AlertRepository alerts;
+    @Autowired private WebhookEventRepository webhookEvents;
+
+    // Received events commit on their own (they must survive a failed apply), so the test's rollback misses them
+    @AfterTransaction
+    void forgetReceivedEvents() {
+        webhookEvents.deleteAll();
+    }
 
     @Test
     void storesSignedIncidentForTheEngineerWhoWasPaged() throws Exception {

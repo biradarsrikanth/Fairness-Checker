@@ -1,12 +1,10 @@
 package com.example.fairnesstracker.pagerduty.webhook;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
-import com.example.fairnesstracker.pagerduty.PagerDutyService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,7 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 public class WebhookController {
 
     private final ObjectMapper objectMapper;
-    private final PagerDutyService pagerDutyService;
+    private final WebhookEventService webhookEvents;
 
     @Value("${pagerduty.webhook.secret}")
     private String webhookSecret;
@@ -48,6 +46,9 @@ public class WebhookController {
         } catch (JacksonException e) {
             return ResponseEntity.badRequest().body("Invalid JSON");
         }
+        if (!root.isObject()) {
+            return ResponseEntity.badRequest().body("Expected a JSON object");
+        }
 
         JsonNode event = root.path("event");
         if ("pagey.ping".equals(event.path("event_type").asString())) {
@@ -59,14 +60,7 @@ public class WebhookController {
             return ResponseEntity.status(401).body("Invalid signature");
         }
 
-        try {
-            String outcome = pagerDutyService.applyWebhookEvent(event);
-            log.info("PagerDuty webhook {} for incident {}: {}", event.path("event_type").asString(),
-                    event.path("data").path("id").asString(), outcome);
-            return ResponseEntity.ok(outcome);
-        } catch (DataIntegrityViolationException e) {
-            // The scheduled sync stored the same incident at the same moment; the unique index kept one copy
-            return ResponseEntity.ok("Already processed");
-        }
+        // Stored once by event id; a failure answers 500, so PagerDuty retries and the retry applies it again
+        return ResponseEntity.ok(webhookEvents.receive(rawPayload, root));
     }
 }
