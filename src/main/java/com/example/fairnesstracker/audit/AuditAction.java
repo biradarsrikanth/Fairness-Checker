@@ -18,5 +18,6 @@ public enum AuditAction {
     USER_DELETED,
     // PagerDuty operations started by a person
     SYNC_TRIGGERED,
-    INCIDENT_RESOLVED
+    INCIDENT_RESOLVED,
+    WEBHOOK_REPLAYED
 }
