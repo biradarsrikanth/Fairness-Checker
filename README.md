@@ -53,7 +53,8 @@ in responses are UTC instants. Errors are `application/problem+json` with a stab
 | Alerts | `GET /api/v1/alerts?engineerId=&team=&severity=&status=&start=&end=` (paged), `POST /api/v1/alerts`, `GET/DELETE /api/v1/alerts/{id}`, `GET /api/v1/alerts/{id}/assignments` |
 | On-call | `GET /api/v1/oncall?start=&end=&engineerId=` (paged) |
 | Scores | `GET /api/v1/scores/{fairness,burnout,timeofday}`, `GET /api/v1/scores/engineers/{id}` (`days` or `start`/`end`, optional `team`) |
-| PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=`, `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
+| PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=` (409 `SYNC_IN_PROGRESS` while one runs), `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
+| Sync activity (admins) | `GET /api/v1/pagerduty/sync-status`, `GET /api/v1/pagerduty/sync-runs?kind=&status=&trigger=` (paged), `GET /api/v1/pagerduty/sync-runs/{id}`, `GET /api/v1/pagerduty/webhook-events?status=&eventType=&incidentId=` (paged), `GET /api/v1/pagerduty/webhook-events/{id}` (with the body), `POST /api/v1/pagerduty/webhook-events/{id}/replay` |
 | Analytics | `GET /api/v1/analytics/{summary,alerts/timeseries,heatmap,services/top,trend,snapshot}?team=&start=&end=&granularity=day\|week\|month` (dates in `TEAM_TIMEZONE`, default the last 30 days; only what you may see) |
 | Auth | `POST /api/v1/auth/{login,refresh,logout,change-password}`, `GET /api/v1/auth/me` |
 | Users (admins) | `GET/POST /api/v1/users`, `GET/PUT/DELETE /api/v1/users/{id}`, `PUT /api/v1/users/{id}/teams`, `POST /api/v1/users/{id}/{reset-password,unlock}` |

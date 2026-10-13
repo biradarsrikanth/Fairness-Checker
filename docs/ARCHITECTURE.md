@@ -33,7 +33,7 @@ entities by the services, which own the rules). Controllers only call services:
 | Package | Contents |
 |---|---|
 | `team`, `engineer`, `alert`, `oncall` | Core data and its REST API (`alert` also holds `MonitoredService`) |
-| `pagerduty` | PagerDuty client calls, incident and on-call sync, scheduler; `webhook/` receives signed webhooks |
+| `pagerduty` | PagerDuty client calls, incident and on-call sync, scheduler, sync activity for admins; `sync/` runs syncs under a lock and records them; `webhook/` receives signed webhooks and stores each event once |
 | `scoring` | `ScoringClient` and the `/api/v1/scores` proxy to the scorer |
 | `common` | `config/` (HTTP clients, OpenAPI), `exception/` (`ApiError`, global handler), `web/` (request id filter) |
 | `dev` | Helpers loaded only with the `dev` profile |
@@ -148,6 +148,7 @@ details served as `application/problem+json`.
 | `NOT_FOUND` | 404 | The resource in the URL, or the route, doesn't exist |
 | `METHOD_NOT_ALLOWED` / `NOT_ACCEPTABLE` / `UNSUPPORTED_MEDIA_TYPE` | 405 / 406 / 415 | Protocol errors |
 | `CONFLICT` | 409 | Duplicates (with the field) and operations the current state forbids |
+| `SYNC_IN_PROGRESS` | 409 | A manual PagerDuty sync while the same kind of sync is running |
 | `UPSTREAM_ERROR` / `UPSTREAM_UNAVAILABLE` / `UPSTREAM_TIMEOUT` | 502 / 503 / 504 | Scorer or PagerDuty failed |
 | `INTERNAL_ERROR` | 500 | A bug; quote the `requestId` |
 
@@ -158,11 +159,19 @@ never reach a controller.
 
 ## Data flow
 
-1. **Ingestion.** PagerDuty pushes webhooks (verified with HMAC-SHA256). A scheduled sync pulls incidents
-   created in the last `PAGERDUTY_SYNC_LOOKBACK_DAYS` days as a safety net for missed webhooks, upserting by
-   PagerDuty incident id (unique index).
+1. **Ingestion.** PagerDuty pushes webhooks (verified with HMAC-SHA256). Each signed event is stored in
+   `webhook_event` under PagerDuty's event id before it's applied, so a redelivery is a no-op (an old
+   `incident.acknowledged` delivered again can't reopen a resolved incident). An event that fails is kept as
+   FAILED and answered with an error; PagerDuty's retry applies it again, and admins can replay it. A
+   scheduled sync pulls incidents created in the last `PAGERDUTY_SYNC_LOOKBACK_DAYS` days as a safety net
+   for missed webhooks, upserting by PagerDuty incident id (unique index).
 2. **On-call shifts.** The same scheduled job reads PagerDuty `/oncalls` (in ≤ 90-day chunks) into
    `oncall_shift`, merging overlapping pieces of one shift.
+   Every sync, scheduled or manual, holds a ShedLock lock for its kind (incidents, on-calls) in the
+   `shedlock` table, so across instances one of each runs at a time; a manual sync that finds the lock taken
+   gets 409 `SYNC_IN_PROGRESS`. Each sync that runs is recorded in `sync_run` (RUNNING, then SUCCEEDED or
+   FAILED with the error). A run left RUNNING by an instance that died is closed as FAILED by the next run of
+   that kind.
 3. **Attribution.** An alert belongs to the engineer who was **paged**: the first assignee, falling back to
    the incident's first assignment log entry. It is set once on creation and never overwritten by later
    updates, so resolving someone else's incident doesn't move the alert to you.
@@ -179,7 +188,8 @@ never reach a controller.
 | Scorer slow | Connect timeout 2 s, response timeout 10 s → gateway returns 504 |
 | Scorer down / 5xx | GET retried twice with exponential backoff (200 ms base) → then 503 |
 | Scorer 4xx | Passed through (e.g. 404 unknown engineer), never retried |
-| PagerDuty slow | Same timeouts on the PagerDuty client; a failed sync is logged and retried next cycle |
+| PagerDuty slow / down | Same timeouts on the PagerDuty client; a failed sync is recorded as a FAILED `sync_run` and retried next cycle; a webhook that needed PagerDuty answers 502 and is applied on PagerDuty's retry |
+| Gateway dies mid-sync | Its lock expires after `PAGERDUTY_SYNC_LOCK_AT_MOST_FOR`; the next run closes the abandoned `sync_run` |
 | Database down | Scorer readiness (`/health`) and gateway readiness (`/actuator/health/readiness`) fail; compose / the platform stops routing traffic |
 
 ## Security
@@ -256,6 +266,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `PAGERDUTY_CONNECT_TIMEOUT` / `PAGERDUTY_RESPONSE_TIMEOUT` | gateway | no | `5s` / `30s` | PagerDuty call timeouts |
 | `PAGERDUTY_SYNC_ENABLED` / `PAGERDUTY_SYNC_LOOKBACK_DAYS` | gateway | no | `true` / `30` | Scheduled incident sync |
 | `PAGERDUTY_ONCALL_LOOKBACK_DAYS` | gateway | no | `7` | Scheduled on-call sync; backfill with `POST /api/v1/pagerduty/sync/oncalls?days=365` |
+| `PAGERDUTY_SYNC_LOCK_AT_MOST_FOR` | gateway | no | `30m` | How long a sync lock outlives an instance that died holding it; keep it above the longest sync |
 | `SEED_DEMO_DATA` | gateway | no | `false` | Demo engineers in an empty database |
 | `JPA_SHOW_SQL` | gateway | no | `false` | Log SQL (debugging only) |
 | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | gateway | no | plain text | `ecs` for JSON logs |
@@ -266,7 +277,9 @@ New settings introduced with this architecture (existing database and PagerDuty 
 
 ## Known limitations
 
-- Single gateway instance assumed: the scheduled sync has no distributed lock (add ShedLock before scaling out), and
-  the sign-in rate limit is counted per instance.
+- Several gateway instances can run (syncs are locked across them), but the sign-in rate limit is counted
+  per instance, and each instance schedules the sync from its own start time (so with N instances, up to N
+  syncs per `PAGERDUTY_SYNC_RATE`, never two of a kind at once).
+- `webhook_event` and `sync_run` keep every row; nothing prunes them yet.
 - The scorer loads the full window into memory; fine up to ~10⁵ alerts per window. Beyond that, move
   aggregation into SQL.

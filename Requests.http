@@ -133,6 +133,22 @@ Authorization: Bearer {{token}}
 POST {{host}}/api/v1/pagerduty/sync/oncalls?days=365
 Authorization: Bearer {{token}}
 
+### Last sync of each kind: running now, last run, last success
+GET {{host}}/api/v1/pagerduty/sync-status
+Authorization: Bearer {{token}}
+
+### Failed syncs, newest first
+GET {{host}}/api/v1/pagerduty/sync-runs?status=FAILED
+Authorization: Bearer {{token}}
+
+### Webhooks that failed to apply
+GET {{host}}/api/v1/pagerduty/webhook-events?status=FAILED
+Authorization: Bearer {{token}}
+
+### Apply a failed webhook again
+POST {{host}}/api/v1/pagerduty/webhook-events/1/replay
+Authorization: Bearer {{token}}
+
 ### Resolve an incident as a PagerDuty user
 POST {{host}}/api/v1/pagerduty/resolve/INCIDENT_ID?email=engineer@example.com
 Authorization: Bearer {{token}}
