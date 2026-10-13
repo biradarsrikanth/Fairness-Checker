@@ -42,8 +42,8 @@ gets a new access token. In Swagger UI, sign in with the login operation, then p
 create everyone else. What each role may see is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security).
 
 Paged lists take `page` (from 0), `size` (default 20, at most 100) and `sort=field,asc|desc`, and return
-`{content, page, size, totalElements, totalPages}`. Dates (`start`, `end`) are UTC days, both inclusive; times
-in responses are UTC instants. Errors are `application/problem+json` with a stable `code` (see
+`{content, page, size, totalElements, totalPages}`. Dates (`start`, `end`) are inclusive days in
+`TEAM_TIMEZONE`, as on the analytics pages (the audit log's are UTC days); times in responses are UTC instants. Errors are `application/problem+json` with a stable `code` (see
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#contracts)).
 
 | Area | Routes |
@@ -56,7 +56,24 @@ in responses are UTC instants. Errors are `application/problem+json` with a stab
 | PagerDuty | `POST /api/v1/pagerduty/sync`, `POST /api/v1/pagerduty/sync/oncalls?days=` (409 `SYNC_IN_PROGRESS` while one runs), `POST /api/webhook/pagerduty` (unversioned: PagerDuty is configured with this URL) |
 | Sync activity (admins) | `GET /api/v1/pagerduty/sync-status`, `GET /api/v1/pagerduty/sync-runs?kind=&status=&trigger=` (paged), `GET /api/v1/pagerduty/sync-runs/{id}`, `GET /api/v1/pagerduty/webhook-events?status=&eventType=&incidentId=` (paged), `GET /api/v1/pagerduty/webhook-events/{id}` (with the body), `POST /api/v1/pagerduty/webhook-events/{id}/replay` |
 | Analytics | `GET /api/v1/analytics/{summary,alerts/timeseries,heatmap,services/top,trend,snapshot}?team=&start=&end=&granularity=day\|week\|month` (dates in `TEAM_TIMEZONE`, default the last 30 days; only what you may see) |
+| Reports | `GET /api/v1/reports/analytics?format=pdf\|xlsx&team=&start=&end=`, `GET /api/v1/reports/engineers/{id}?format=&start=&end=` (attachments; at most `REPORT_MAX_WINDOW_DAYS`, default 366), `GET /api/v1/reports/exports` (your downloads, paged) |
 | Auth | `POST /api/v1/auth/{login,refresh,logout,change-password}`, `GET /api/v1/auth/me` |
 | Users (admins) | `GET/POST /api/v1/users`, `GET/PUT/DELETE /api/v1/users/{id}`, `PUT /api/v1/users/{id}/teams`, `POST /api/v1/users/{id}/{reset-password,unlock}` |
 | Audit (admins) | `GET /api/v1/audit?action=&userId=&start=&end=` (paged) |
 | Operations | `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus` |
+
+## Reports
+
+PDF and Excel versions of the analytics pages, built per request from the same figures (`report` package):
+
+- **Excel** (Apache POI, streaming): Summary, Fairness, Burnout, Time of day, Alerts and On-call sheets with real
+  numbers and dates in `TEAM_TIMEZONE`. The engineer workbook has Summary, Time of day, Alerts and On-call.
+- **PDF**: a Thymeleaf template (`src/main/resources/reports`) laid out by openhtmltopdf, with JFreeChart charts in
+  the web app's colors. It summarises; the workbook lists every alert (up to `REPORT_MAX_ALERT_ROWS`, default 5000)
+  and shift (`REPORT_MAX_SHIFT_ROWS`, 2000).
+- Text is set in the bundled DejaVu Sans (`reports/fonts`, with its licence), so the server needs no fonts of its
+  own. Latin, Greek and Cyrillic names print; scripts that need shaping (Devanagari, for one) don't.
+- Every download is a `report_export` row (RUNNING, then SUCCEEDED or FAILED with the reason) and, when it
+  succeeds, a `REPORT_EXPORTED` audit entry. When the scorer is down, the analytics report still comes, saying what
+  is missing; an engineer's report needs the scorer and fails.
+
