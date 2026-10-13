@@ -48,8 +48,8 @@ public class AlertEventController {
     }
 
     @Operation(operationId = "listAlerts", summary = "List alerts",
-            description = "Filters combine with AND. Sort by triggeredAt (default, newest first), resolvedAt, "
-                    + "severity or status.")
+            description = "Filters combine with AND; start and end are inclusive days in the analytics timezone. "
+                    + "Sort by triggeredAt (default, newest first), resolvedAt, severity or status.")
     @GetMapping
     public PageResponse<AlertResponse> list(
             @Valid @ParameterObject AlertFilter filter,

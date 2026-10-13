@@ -32,7 +32,7 @@ public class OncallController {
     }
 
     @Operation(operationId = "listOncallShifts", summary = "List on-call shifts",
-            description = "Shifts overlapping [start, end] (UTC dates, inclusive, at most 366 days apart), "
+            description = "Shifts overlapping [start, end] (inclusive days in the analytics timezone, at most 366 days apart), "
                     + "optionally for one engineer. Sort by startsAt (default) or endsAt.")
     @GetMapping
     public PageResponse<OncallShiftResponse> shifts(

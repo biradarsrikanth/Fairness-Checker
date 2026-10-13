@@ -3,6 +3,10 @@ package com.example.fairnesstracker.alert;
 import com.example.fairnesstracker.alert.dto.AlertFilter;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,7 +16,8 @@ final class AlertSpecifications {
     private AlertSpecifications() {
     }
 
-    static Specification<AlertEvent> matching(AlertFilter filter) {
+    /** {@code start} and {@code end} are inclusive days in {@code zone}, as on the analytics pages. */
+    static Specification<AlertEvent> matching(AlertFilter filter, ZoneId zone) {
         List<Specification<AlertEvent>> conditions = new ArrayList<>();
         if (filter.engineerId() != null) {
             conditions.add((alert, query, cb) -> cb.equal(alert.get("engineer").get("id"), filter.engineerId()));
@@ -29,13 +34,18 @@ final class AlertSpecifications {
         }
         if (filter.start() != null) {
             conditions.add((alert, query, cb) ->
-                    cb.greaterThanOrEqualTo(alert.get("triggeredAt"), filter.start().atStartOfDay()));
+                    cb.greaterThanOrEqualTo(alert.get("triggeredAt"), utc(filter.start(), zone)));
         }
         if (filter.end() != null) {
             // Inclusive end date: everything before the next day's midnight
             conditions.add((alert, query, cb) ->
-                    cb.lessThan(alert.get("triggeredAt"), filter.end().plusDays(1).atStartOfDay()));
+                    cb.lessThan(alert.get("triggeredAt"), utc(filter.end().plusDays(1), zone)));
         }
         return Specification.allOf(conditions);
+    }
+
+    // Times are stored as UTC
+    private static LocalDateTime utc(LocalDate day, ZoneId zone) {
+        return day.atStartOfDay(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 }

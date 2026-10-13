@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -81,7 +82,7 @@ class AlertRepositoryTest {
 
         var filter = new AlertFilter(null, "Platform", "P1", "resolved",
                 LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
-        var page = repo.findAll(AlertSpecifications.matching(filter), PageRequest.of(0, 10));
+        var page = repo.findAll(AlertSpecifications.matching(filter, ZoneOffset.UTC), PageRequest.of(0, 10));
 
         assertEquals(List.of(matching.getId()), page.map(AlertEvent::getId).getContent());
     }
@@ -93,7 +94,7 @@ class AlertRepositoryTest {
                 "P2", "triggered", LocalDateTime.of(2026, 9, 16, 12, 0));
 
         var everything = new AlertFilter(null, null, null, null, null, null);
-        assertEquals(2, repo.findAll(AlertSpecifications.matching(everything), PageRequest.of(0, 10))
+        assertEquals(2, repo.findAll(AlertSpecifications.matching(everything, ZoneOffset.UTC), PageRequest.of(0, 10))
                 .getTotalElements());
     }
 

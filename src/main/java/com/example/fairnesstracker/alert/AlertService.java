@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.alert;
 
+import com.example.fairnesstracker.analytics.AnalyticsProperties;
 import com.example.fairnesstracker.alert.dto.AlertFilter;
 import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -31,9 +33,13 @@ public class AlertService {
     private final EngineerRepository engineerRepository;
     private final AlertAssignmentRepository assignmentRepository;
     private final AlertMapper alertMapper;
+    // Filter dates are days here, as on the analytics pages
+    private final ZoneId zone;
 
     public AlertService(AlertRepository alertRepository, EngineerRepository engineerRepository,
-                        AlertAssignmentRepository assignmentRepository, AlertMapper alertMapper) {
+                        AlertAssignmentRepository assignmentRepository, AlertMapper alertMapper,
+                        AnalyticsProperties analytics) {
+        this.zone = analytics.zone();
         this.alertRepository = alertRepository;
         this.engineerRepository = engineerRepository;
         this.assignmentRepository = assignmentRepository;
@@ -71,7 +77,7 @@ public class AlertService {
             throw ValidationException.onField("end", "must be on or after start");
         }
         Page<AlertEvent> page = alertRepository.findAll(
-                AlertSpecifications.matching(filter).and(scope.restrict(alert -> alert.get("engineer"))),
+                AlertSpecifications.matching(filter, zone).and(scope.restrict(alert -> alert.get("engineer"))),
                 Sorting.restrict(pageable, SORTABLE));
         return PageResponse.from(page.map(alertMapper::toResponse));
     }
