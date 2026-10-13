@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.scoring.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.jspecify.annotations.Nullable;
 
 import java.time.OffsetDateTime;
@@ -17,6 +18,9 @@ public final class Scores {
     private Scores() {
     }
 
+    // Named for the spec: the analytics Window (dates) would otherwise take this schema's place
+    @Schema(name = "ScoreWindow", description = "start: midnight of the first day in the timezone; end: exclusive, "
+            + "midnight after the last day (or the current minute when no end was given)")
     public record Window(OffsetDateTime start, OffsetDateTime end, String timezone) {
     }
 

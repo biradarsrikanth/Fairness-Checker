@@ -1,5 +1,6 @@
 package com.example.fairnesstracker.alert.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -25,6 +26,9 @@ public record AlertResponse(
 ) {
 
     /** One step of the paging history; {@code engineer*} is null when the PagerDuty user isn't one of ours. */
+    // Named for the spec: PagerDuty's incident Assignment would otherwise take this schema's place
+    @Schema(name = "AlertAssignment", description = "One step of the paging history, oldest first. kind: PAGED, "
+            + "ESCALATED or REASSIGNED; engineer fields are null when the PagerDuty user isn't one of ours")
     public record Assignment(String kind, @Nullable Long engineerId, @Nullable String engineerName, @Nullable String pagerDutyUserId,
                              Instant assignedAt, String source) {
     }

@@ -1,10 +1,14 @@
 package com.example.fairnesstracker;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Entity;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
@@ -13,7 +17,11 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -122,6 +130,36 @@ class ApiDocsTest {
         assertThat(ids).doesNotHaveDuplicates().allMatch(id -> id.matches("[a-z][A-Za-z]+"));
         assertThat(ids).contains("listTeams", "getAnalyticsSummary", "refreshSession", "listSyncRuns",
                 "receivePagerDutyWebhook");
+    }
+
+    // springdoc names a schema after the class's simple name, so of two classes with one name the second
+    // silently takes the first one's place (the client then gets the wrong shape). Each needs @Schema(name).
+    @Test
+    void noTwoClassesShareASchemaName() throws Exception {
+        Set<String> schemas = new HashSet<>(spec().path("components").path("schemas").propertyNames());
+        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter((reader, factory) -> true);
+        Map<String, List<String>> classesBySchema = new TreeMap<>();
+        for (BeanDefinition candidate : scanner.findCandidateComponents("com.example.fairnesstracker")) {
+            Class<?> type = Class.forName(candidate.getBeanClassName());
+            boolean testClass = type.getProtectionDomain().getCodeSource().getLocation().getPath().contains("test-classes");
+            // Enums are inlined and entities never returned; OncallsResponse.Oncall is PagerDuty's, only read
+            if (type.isEnum() || testClass || type.isAnnotationPresent(Entity.class)
+                    || type.getName().endsWith("OncallsResponse$Oncall")) {
+                continue;
+            }
+            Schema schema = type.getAnnotation(Schema.class);
+            String name = schema != null && !schema.name().isEmpty() ? schema.name() : type.getSimpleName();
+            if (schemas.contains(name)) {
+                classesBySchema.computeIfAbsent(name, key -> new ArrayList<>()).add(type.getName());
+            }
+        }
+        assertThat(classesBySchema).isNotEmpty()
+                .allSatisfy((name, classes) -> assertThat(classes).as(name).hasSize(1));
+        assertThat(spec().at("/components/schemas/AlertAssignment/properties").propertyNames())
+                .contains("kind", "engineerName", "assignedAt");
+        assertThat(spec().at("/components/schemas/ScoreWindow/properties/start/format").asString())
+                .isEqualTo("date-time");
     }
 
     @Test
