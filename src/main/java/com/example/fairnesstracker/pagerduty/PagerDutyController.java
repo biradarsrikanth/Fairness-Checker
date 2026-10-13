@@ -6,6 +6,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.fairnesstracker.pagerduty.dto.SyncResult;
 import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;
+import com.example.fairnesstracker.pagerduty.sync.SyncInProgressException;
+import com.example.fairnesstracker.pagerduty.sync.SyncRun;
+import com.example.fairnesstracker.pagerduty.sync.SyncRunner;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
@@ -27,13 +31,12 @@ import java.util.Map;
 public class PagerDutyController {
 
     private final PagerDutyService pagerDutyService;
-    private final OncallSyncService oncallSyncService;
+    private final SyncRunner syncRunner;
     private final AuditService audit;
 
-    public PagerDutyController(PagerDutyService pagerDutyService, OncallSyncService oncallSyncService,
-                               AuditService audit) {
+    public PagerDutyController(PagerDutyService pagerDutyService, SyncRunner syncRunner, AuditService audit) {
         this.pagerDutyService = pagerDutyService;
-        this.oncallSyncService = oncallSyncService;
+        this.syncRunner = syncRunner;
         this.audit = audit;
     }
 
@@ -49,19 +52,27 @@ public class PagerDutyController {
         return pagerDutyService.getUsers();
     }
 
+    @Operation(summary = "Sync incidents now",
+            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another incident sync is running.")
     @PostMapping("/sync")
     public SyncResult syncIncidents() {
-        SyncResult result = pagerDutyService.syncIncidents();
-        audit.record(AuditAction.SYNC_TRIGGERED, "SYNC", null, Map.of("kind", "INCIDENTS",
+        var run = syncRunner.syncIncidents(SyncRun.Trigger.MANUAL)
+                .orElseThrow(() -> new SyncInProgressException(SyncRun.Kind.INCIDENTS));
+        SyncResult result = run.result();
+        audit.record(AuditAction.SYNC_TRIGGERED, "SYNC_RUN", run.runId(), Map.of("kind", "INCIDENTS",
                 "created", result.created(), "updated", result.updated(), "failed", result.failed()));
         return result;
     }
 
     // e.g. ?days=365 once to backfill a year of shifts; the scheduler keeps the recent ones current
+    @Operation(summary = "Sync on-call shifts now",
+            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another on-call sync is running.")
     @PostMapping("/sync/oncalls")
     public SyncResult.Oncall syncOncalls(@RequestParam(defaultValue = "7") @Min(1) @Max(730) int days) {
-        SyncResult.Oncall result = oncallSyncService.syncOncalls(days);
-        audit.record(AuditAction.SYNC_TRIGGERED, "SYNC", null, Map.of("kind", "ONCALLS", "days", days,
+        var run = syncRunner.syncOncalls(SyncRun.Trigger.MANUAL, days)
+                .orElseThrow(() -> new SyncInProgressException(SyncRun.Kind.ONCALLS));
+        SyncResult.Oncall result = run.result();
+        audit.record(AuditAction.SYNC_TRIGGERED, "SYNC_RUN", run.runId(), Map.of("kind", "ONCALLS", "days", days,
                 "shiftsStored", result.shiftsStored(), "skipped", result.skipped()));
         return result;
     }

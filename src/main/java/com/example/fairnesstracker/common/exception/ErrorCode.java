@@ -41,6 +41,8 @@ public enum ErrorCode {
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     /** The request is valid but clashes with existing data, e.g. a duplicate name or a delete of something in use. */
     CONFLICT(HttpStatus.CONFLICT),
+    /** The same kind of PagerDuty sync is already running; retry when it finishes (see GET .../sync-status). */
+    SYNC_IN_PROGRESS(HttpStatus.CONFLICT),
     /** A service we depend on (scorer, PagerDuty) returned an error or an unexpected response. */
     UPSTREAM_ERROR(HttpStatus.BAD_GATEWAY),
     /** A service we depend on can't be reached. */
