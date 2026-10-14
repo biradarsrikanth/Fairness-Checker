@@ -118,7 +118,8 @@ public class AnalyticsService {
         ScorerFigures scores = figures.getT1();
         return new Snapshot(summary(request, scores), alertsOverTime, heatmap, topServices, figures.getT2(),
                 scores.current() != null ? scores.current().engineers() : List.of(),
-                scores.burnout() != null ? scores.burnout().engineers() : List.of());
+                scores.burnout() != null ? scores.burnout().engineers() : List.of(),
+                scores.current() != null ? scores.current().teams() : List.of());
     }
 
     // A scorer failure is already turned into "unavailable"; anything else is a bug and surfaces as it is

@@ -139,6 +139,15 @@ public class ExcelReportRenderer implements ReportRenderer {
             sheet.row().text(load.name()).text(load.team()).num(load.alertCount()).num(load.escalationsReceived())
                     .dec(load.load()).dec(load.sharePct()).dec(load.oncallHours()).dec(load.loadPerOncallHour());
         }
+        if (snapshot.teamFairness().size() > 1) {
+            sheet.blank();
+            sheet.title("Fairness by team (the overall Gini is their average, weighted by alerts)");
+            sheet.headings("Team", "Gini", "Label", "Alerts", "Engineers", "Rotation Gini");
+            for (Scores.TeamFairness team : snapshot.teamFairness()) {
+                sheet.row().text(team.team()).num(team.gini(), styles.gini).text(ReportText.humanize(team.label()))
+                        .num(team.alertCount()).num(team.engineerCount()).num(team.rotationGini(), styles.gini);
+            }
+        }
         sheet.blank();
         sheet.title("Fairness per " + snapshot.trend().granularity());
         sheet.headings("Period starting", "Gini", "Alerts", "Average burnout", "High risk", "Confidence");

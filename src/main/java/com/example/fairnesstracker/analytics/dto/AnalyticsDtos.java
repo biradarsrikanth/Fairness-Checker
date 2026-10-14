@@ -81,7 +81,12 @@ public final class AnalyticsDtos {
 
     @Schema(description = "Everything the analytics page and the reports show, computed once. loadShare and "
             + "burnout are limited to your own row if you're an engineer")
+    /**
+     * Everything the analytics page shows. {@code teamFairness} is each team's own fairness when the page covers
+     * several (the summary's Gini is their average, weighted by alerts); empty without scores.
+     */
     public record Snapshot(Summary summary, TimeSeries alertsOverTime, Heatmap heatmap, TopServices topServices,
-                           Trend trend, List<Scores.EngineerLoad> loadShare, List<Scores.BurnoutScore> burnout) {
+                           Trend trend, List<Scores.EngineerLoad> loadShare, List<Scores.BurnoutScore> burnout,
+                           List<Scores.TeamFairness> teamFairness) {
     }
 }

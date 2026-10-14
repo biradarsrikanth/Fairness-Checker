@@ -33,15 +33,28 @@ public final class Scores {
                                @Nullable Double oncallHours, @Nullable Double loadPerOncallHour) {
     }
 
-    /** {@code basis}: ONCALL_ROTATION (compares people on call) or ACTIVE_ENGINEERS (no shift data). */
+    /** One team's own fairness, within a report covering several. */
+    public record TeamFairness(String team, double gini, String label, @Nullable Double rotationGini,
+                               int alertCount, int engineerCount) {
+    }
+
+    /**
+     * {@code basis}: ONCALL_ROTATION (compares people on call) or ACTIVE_ENGINEERS (no shift data). For several
+     * teams, {@code gini} is the average of the teams' own (listed in {@code teams}), weighted by alerts.
+     */
     public record FairnessReport(Window window, @Nullable String team, String basis, double gini, String label,
                                  @Nullable Double rotationGini, String confidence, int alertCount,
-                                 List<EngineerLoad> engineers) {
+                                 List<EngineerLoad> engineers, List<TeamFairness> teams) {
+
+        public FairnessReport {
+            // Scorers before the per-team breakdown don't send it
+            teams = teams == null ? List.of() : List.copyOf(teams);
+        }
 
         /** The team's figures, with only this engineer's row: peers' loads aren't shown to an engineer. */
         public FairnessReport onlyEngineer(long engineerId) {
             return new FairnessReport(window, team, basis, gini, label, rotationGini, confidence, alertCount,
-                    engineers.stream().filter(e -> e.engineerId() == engineerId).toList());
+                    engineers.stream().filter(e -> e.engineerId() == engineerId).toList(), teams);
         }
     }
 

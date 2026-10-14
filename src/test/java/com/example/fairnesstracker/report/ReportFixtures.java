@@ -83,11 +83,22 @@ final class ReportFixtures {
                         scoresAvailable ? ScoresStatus.AVAILABLE : summary.scores()),
                 scoresAvailable ? loads : List.of(),
                 scoresAvailable ? List.of(burnout(3, "Asha Rao", 64, "HIGH"), burnout(4, "Ravi Kumar", 20, "LOW"))
-                        : List.of());
+                        : List.of(),
+                scoresAvailable ? List.of(new Scores.TeamFairness("SRE", 0.31, "MODERATE", 0.0, 20, 2)) : List.of());
         Scores.TimeOfDayReport timeOfDay = scoresAvailable ? new Scores.TimeOfDayReport(scoreWindow, "SRE", List.of(
                 new Scores.EngineerTimeOfDay(3, "Asha Rao", "SRE", 4, 2, 3, 3))) : null;
         return new ReportData.Analytics(header("Fairness report", "SRE"), snapshot, timeOfDay,
                 new Rows<>(alerts(30), 31), new Rows<>(shifts(), 2));
+    }
+
+    /** The analytics report over two teams: each team's own fairness is listed. */
+    static ReportData.Analytics analyticsOfTwoTeams() {
+        ReportData.Analytics one = analytics(true);
+        Snapshot s = one.snapshot();
+        Snapshot both = new Snapshot(s.summary(), s.alertsOverTime(), s.heatmap(), s.topServices(), s.trend(),
+                s.loadShare(), s.burnout(), List.of(new Scores.TeamFairness("SRE", 0.31, "MODERATE", 0.0, 20, 2),
+                new Scores.TeamFairness("Platform", 0.62, "CRITICAL", null, 5, 3)));
+        return new ReportData.Analytics(one.header(), both, one.timeOfDay(), one.alerts(), one.shifts());
     }
 
     static ReportData.Engineer engineer() {

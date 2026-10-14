@@ -12,7 +12,7 @@ class ScoresRedactionTest {
     @Test
     void fairnessKeepsTheTeamFiguresAndOnlyOneRow() {
         Scores.FairnessReport report = new Scores.FairnessReport(null, "SRE", "ONCALL_ROTATION", 0.31, "Fair",
-                0.2, "HIGH", 12, List.of(load(1, "Asha"), load(2, "Ravi")));
+                0.2, "HIGH", 12, List.of(load(1, "Asha"), load(2, "Ravi")), null);
 
         Scores.FairnessReport own = report.onlyEngineer(2);
 

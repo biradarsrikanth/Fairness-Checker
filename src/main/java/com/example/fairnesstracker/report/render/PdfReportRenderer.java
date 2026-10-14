@@ -128,6 +128,14 @@ public class PdfReportRenderer implements ReportRenderer {
         context.setVariable("giniChart", snapshot.trend().periods().isEmpty() ? null
                 : charts.giniTrend(snapshot.trend().periods(), snapshot.trend().granularity(), zone, 520, 200));
         context.setVariable("trendGranularity", snapshot.trend().granularity());
+        // Several teams: the Gini above is their average, so show each team's own
+        context.setVariable("teamFairness", snapshot.teamFairness().size() > 1 ? snapshot.teamFairness().stream()
+                .sorted(Comparator.comparingDouble(Scores.TeamFairness::gini).reversed()
+                        .thenComparing(Scores.TeamFairness::team))
+                .map(t -> Map.of("team", t.team(), "gini", String.format(java.util.Locale.UK, "%.2f", t.gini()),
+                        "label", ReportText.humanize(t.label()), "alerts", String.valueOf(t.alertCount()),
+                        "engineers", String.valueOf(t.engineerCount())))
+                .toList() : List.of());
         context.setVariable("loadChart", snapshot.loadShare().isEmpty() ? null : charts.loadShare(snapshot.loadShare(), 520));
         context.setVariable("heatmap", anyAlerts ? heatmap(snapshot.heatmap().cells(), snapshot.heatmap().max()) : null);
         context.setVariable("hours", hours());

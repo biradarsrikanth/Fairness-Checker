@@ -51,6 +51,22 @@
     <img class="chart" th:src="${giniChart}" alt="Gini coefficient per period"/>
   </section>
 
+  <section th:if="${!teamFairness.isEmpty()}">
+    <h2>Fairness by team</h2>
+    <p class="muted small">Each team's own Gini; the figure above is their average, weighted by alerts</p>
+    <table class="data">
+      <thead>
+        <tr><th>Team</th><th class="num">Gini</th><th>Label</th><th class="num">Alerts</th><th class="num">Engineers</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="t : ${teamFairness}">
+          <td th:text="${t.team}">SRE</td><td class="num" th:text="${t.gini}">0.31</td><td th:text="${t.label}">Moderate</td>
+          <td class="num" th:text="${t.alerts}">20</td><td class="num" th:text="${t.engineers}">4</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
   <section th:if="${loadChart}">
     <h2>Load share</h2>
     <p class="muted small">Each engineer's share of the weighted on-call load</p>

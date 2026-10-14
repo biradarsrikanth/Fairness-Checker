@@ -85,6 +85,23 @@ class ReportRenderersTest {
     }
 
     @Test
+    void severalTeamsAreListedWithTheirOwnFairness() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+                excel.render(ReportFixtures.analyticsOfTwoTeams())))) {
+            assertThat(find(workbook.getSheet("Fairness"), "Platform").getCell(1).getNumericCellValue())
+                    .isEqualTo(0.62);
+        }
+        try (PDDocument document = Loader.loadPDF(pdf.render(ReportFixtures.analyticsOfTwoTeams()))) {
+            String text = new PDFTextStripper().getText(document).replaceAll("\\s+", " ");
+            assertThat(text).contains("Fairness by team", "Platform 0.62 Critical");
+        }
+        // One team: nothing to break down
+        try (PDDocument document = Loader.loadPDF(pdf.render(ReportFixtures.analytics(true)))) {
+            assertThat(new PDFTextStripper().getText(document)).doesNotContain("Fairness by team");
+        }
+    }
+
+    @Test
     void engineerWorkbook() throws IOException {
         byte[] file = excel.render(ReportFixtures.engineer());
         Files.write(SAMPLES.resolve("engineer.xlsx"), file);
