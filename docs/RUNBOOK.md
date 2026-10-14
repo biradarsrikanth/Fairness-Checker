@@ -16,21 +16,26 @@ gateway's and the scorer's log lines for that request: search both for it when s
 
 ## Start and stop
 
-**Demo** (everything, with a throwaway database holding real incident data from two published logs; from the
-folder that holds the three repos):
+**Demo** (everything, with a throwaway database holding real incident data from two published logs; from a
+clone of this repository, nothing else needed):
 
 ```bash
-docker compose up --build -d      # http://localhost:8088, sign-ins in the file's header
-docker compose ps                 # seed shows "Exited (0)" once the data is in
-docker compose down               # stop, keep the data
-docker compose down -v            # stop and forget the data; the next start seeds afresh
+docker compose -f demo/compose.yaml up --build -d   # http://localhost:8088, sign-ins in the file's header
+docker compose -f demo/compose.yaml ps              # seed shows "Exited (0)" once the data is in
+docker compose -f demo/compose.yaml down            # stop, keep the data
+docker compose -f demo/compose.yaml down -v         # stop and forget the data; the next start seeds afresh
 ```
 
-**Loading the real incident data into another database** (Azure, say): `demo/load-real-data.sh` reads the
-database settings from `Fairness-Checker/.env`, backs the database up, asks for the host name and loads
-`demo/real-data.sql`. It only adds rows and creates no logins; a second run adds nothing.
-`python3 -I demo/import_real_data.py` rebuilds that file from the original logs, with the dates moved so the
-latest incidents are from the past week.
+The scorer and the web app are built from `main` on GitHub. To try local changes to them, point
+`SCORER_CONTEXT` or `WEB_CONTEXT` at a checkout (relative to `demo/`, e.g. `WEB_CONTEXT=../../fairness-web`);
+`WEB_PORT` changes the port. The seed job needs internet access on first start, to download the two logs; if it
+failed (`docker compose -f demo/compose.yaml logs seed`), run `up` again once the network is back.
+
+**Loading the real incident data into another database** (Azure, say): `python3 -I demo/import_real_data.py`
+downloads the logs and writes `demo/real-data.sql`, with the dates moved so the latest incidents are from the
+past week. Then `demo/load-real-data.sh` reads the database settings from `.env`, backs the database up, asks
+for the host name and loads that file. It only adds rows and creates no logins; a second run adds nothing.
+Neither file is committed (`demo/.gitignore`): the logs aren't ours to redistribute.
 
 **Against the real database**, each repo from its own folder, after `docker network create fairness-net` once
 per machine: start the scorer, then the gateway, then the web app (`docker compose up --build -d` in each).

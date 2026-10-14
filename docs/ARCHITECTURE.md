@@ -324,9 +324,10 @@ never reach a controller.
   reaches the scorer at `http://scorer:8000` and the web app's Nginx reaches the gateway at
   `http://gateway:8080`. None of them runs a database: the gateway and the scorer connect to the existing
   PostgreSQL from their `.env`. The scorer port is bound to `127.0.0.1` only; the web app is on `:4280`.
-- **Demo (Docker):** `docker-compose.yml` in the folder that holds the three repositories builds all three and
-  adds a throwaway PostgreSQL (loaded once by a one-off `seed` service after the gateway has migrated the
-  schema) on `http://localhost:8088`. Its data is real: two published incident logs, Volvo IT (BPI Challenge
+- **Demo (Docker):** `demo/compose.yaml` in this repository builds the gateway from the checkout and the scorer
+  and web app from their GitHub repositories, and adds a throwaway PostgreSQL (loaded once by a one-off `seed`
+  service after the gateway has migrated the schema; it downloads the logs below and converts them on the
+  spot) on `http://localhost:8088`. Its data is real: two published incident logs, Volvo IT (BPI Challenge
   2013, 4TU.ResearchData) and a ServiceNow instance (UCI, CC BY 4.0), turned into this schema by
   `demo/import_real_data.py`: the 21 teams with at least 10 people, 496 engineers, about 19,000 alerts and their
   hand-overs as paging history, moved in whole weeks so the latest are recent. Neither log has on-call shifts. It never touches Azure or PagerDuty; its
