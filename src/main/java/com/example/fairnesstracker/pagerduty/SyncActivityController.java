@@ -101,7 +101,8 @@ public class SyncActivityController {
     @GetMapping("/sync-status")
     @Transactional(readOnly = true)
     public SyncStatusResponse status() {
-        return new SyncStatusResponse(scheduled, scheduled ? syncRateMs / 1000 : null,
+        boolean syncing = scheduled && syncRunner.configured();
+        return new SyncStatusResponse(syncRunner.configured(), syncing, syncing ? syncRateMs / 1000 : null,
                 kindStatus(SyncRun.Kind.INCIDENTS), kindStatus(SyncRun.Kind.ONCALLS));
     }
 

@@ -40,22 +40,31 @@ public class PagerDutyController {
         this.audit = audit;
     }
 
+    private void requireConfigured() {
+        if (!syncRunner.configured()) {
+            throw new PagerDutyNotConfiguredException();
+        }
+    }
+
     @Operation(operationId = "listPagerDutyIncidents")
     @GetMapping("/incidents")
     public PagerDutyResponse getIncidents(
             @RequestParam(defaultValue = "0") @Min(0) int offset,
             @RequestParam(defaultValue = "25") @Min(1) @Max(100) int limit) {
+        requireConfigured();
         return pagerDutyService.getIncidents(offset, limit);
     }
 
     @Operation(operationId = "listPagerDutyUsers")
     @GetMapping("/users")
     public PagerDutyUsersResponse getUsers() {
+        requireConfigured();
         return pagerDutyService.getUsers();
     }
 
     @Operation(operationId = "syncIncidents", summary = "Sync incidents now",
-            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another incident sync is running.")
+            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another incident sync is running, "
+                    + "409 PAGERDUTY_NOT_CONFIGURED without an API token (nothing recorded).")
     @PostMapping("/sync")
     public SyncResult syncIncidents() {
         var run = syncRunner.syncIncidents(SyncRun.Trigger.MANUAL)
@@ -68,7 +77,8 @@ public class PagerDutyController {
 
     // e.g. ?days=365 once to backfill a year of shifts; the scheduler keeps the recent ones current
     @Operation(operationId = "syncOncalls", summary = "Sync on-call shifts now",
-            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another on-call sync is running.")
+            description = "Recorded as a sync run. 409 SYNC_IN_PROGRESS while another on-call sync is running, "
+                    + "409 PAGERDUTY_NOT_CONFIGURED without an API token (nothing recorded).")
     @PostMapping("/sync/oncalls")
     public SyncResult.Oncall syncOncalls(@RequestParam(defaultValue = "7") @Min(1) @Max(730) int days) {
         var run = syncRunner.syncOncalls(SyncRun.Trigger.MANUAL, days)
@@ -84,6 +94,7 @@ public class PagerDutyController {
     @PostMapping("/resolve/{incidentId}")
     public ResponseEntity<String> resolveIncident(@PathVariable String incidentId,
                                                   @RequestParam @Email String email) {
+        requireConfigured();
         pagerDutyService.resolveIncident(incidentId, email);
         audit.record(AuditAction.INCIDENT_RESOLVED, "INCIDENT", incidentId, Map.of("asPagerDutyUser", email));
         return ResponseEntity.ok("Incident resolved successfully");

@@ -1,6 +1,8 @@
 package com.example.fairnesstracker.pagerduty.sync;
 
 import com.example.fairnesstracker.pagerduty.OncallSyncService;
+import com.example.fairnesstracker.pagerduty.PagerDutyNotConfiguredException;
+import com.example.fairnesstracker.pagerduty.PagerDutyProperties;
 import com.example.fairnesstracker.pagerduty.PagerDutyService;
 import com.example.fairnesstracker.pagerduty.dto.SyncResult;
 import com.example.fairnesstracker.pagerduty.sync.SyncRun.Kind;
@@ -26,6 +28,9 @@ import java.util.function.Supplier;
  *
  * <p>{@code lockAtMostFor} is how long a lock outlives an instance that died holding it. A sync still going
  * after that loses its exclusivity, so keep it well above the longest sync (a long on-call backfill).
+ *
+ * <p>Without a PagerDuty API token nothing runs: syncs throw {@link PagerDutyNotConfiguredException} and leave
+ * no row, so a server that was never connected to PagerDuty doesn't fill up with failed runs.
  */
 @Slf4j
 @Service
@@ -39,9 +44,10 @@ public class SyncRunner {
     private final LockProvider locks;
     private final Clock clock;
     private final Duration lockAtMostFor;
+    private final boolean configured;
 
     public SyncRunner(PagerDutyService incidentSync, OncallSyncService oncallSync, SyncRunRepository runs,
-                      LockProvider locks, Clock clock,
+                      LockProvider locks, Clock clock, PagerDutyProperties pagerDuty,
                       @Value("${pagerduty.sync.lock-at-most-for:30m}") Duration lockAtMostFor) {
         this.incidentSync = incidentSync;
         this.oncallSync = oncallSync;
@@ -49,6 +55,15 @@ public class SyncRunner {
         this.locks = locks;
         this.clock = clock;
         this.lockAtMostFor = lockAtMostFor;
+        this.configured = pagerDuty.configured();
+        if (!configured) {
+            log.info("No PagerDuty API token (PAGERDUTY_API_TOKEN): PagerDuty sync is off");
+        }
+    }
+
+    /** Whether this server has a PagerDuty API token; without one every sync throws. */
+    public boolean configured() {
+        return configured;
     }
 
     /** Empty if an incident sync is already running somewhere. */
@@ -84,6 +99,9 @@ public class SyncRunner {
     }
 
     private <T> Optional<Completed<T>> run(Kind kind, Trigger trigger, Supplier<T> work, Function<T, Counts> counts) {
+        if (!configured) {
+            throw new PagerDutyNotConfiguredException();
+        }
         Optional<SimpleLock> lock = locks.lock(
                 new LockConfiguration(clock.instant(), lockName(kind), lockAtMostFor, Duration.ZERO));
         if (lock.isEmpty()) {

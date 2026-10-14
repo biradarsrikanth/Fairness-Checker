@@ -38,7 +38,9 @@ public final class SyncActivityDtos {
 
     @Schema(description = "The latest sync of each kind, for a \"last synced 4 minutes ago\" display")
     public record SyncStatusResponse(
-            @Schema(description = "Whether this instance runs the scheduled sync") boolean scheduled,
+            @Schema(description = "Whether this server has a PagerDuty API token; without one nothing syncs and "
+                    + "the sync endpoints answer 409 PAGERDUTY_NOT_CONFIGURED") boolean configured,
+            @Schema(description = "Whether this instance runs the scheduled sync (never without a token)") boolean scheduled,
             @Schema(description = "Time between scheduled syncs; null when not scheduled") @Nullable Long intervalSeconds,
             KindStatus incidents,
             KindStatus oncalls) {

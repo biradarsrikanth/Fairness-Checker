@@ -43,6 +43,8 @@ public enum ErrorCode {
     CONFLICT(HttpStatus.CONFLICT),
     /** The same kind of PagerDuty sync is already running; retry when it finishes (see GET .../sync-status). */
     SYNC_IN_PROGRESS(HttpStatus.CONFLICT),
+    /** This server has no PagerDuty API token, so it can't sync or reach PagerDuty (see GET .../sync-status). */
+    PAGERDUTY_NOT_CONFIGURED(HttpStatus.CONFLICT),
     /** A service we depend on (scorer, PagerDuty) returned an error or an unexpected response. */
     UPSTREAM_ERROR(HttpStatus.BAD_GATEWAY),
     /** A service we depend on can't be reached. */

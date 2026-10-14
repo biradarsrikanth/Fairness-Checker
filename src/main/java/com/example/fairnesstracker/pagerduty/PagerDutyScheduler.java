@@ -21,6 +21,9 @@ public class PagerDutyScheduler {
 
     @Scheduled(fixedRateString = "${pagerduty.sync-rate}")
     public void syncPagerDuty() {
+        if (!syncRunner.configured()) {
+            return;
+        }
         // Independent: a failure in one doesn't skip the other; both retry on the next run. Failures are also
         // recorded as sync runs
         try {
