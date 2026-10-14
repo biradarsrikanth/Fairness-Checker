@@ -4,6 +4,7 @@ import com.example.fairnesstracker.alert.AlertRepository;
 import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.web.PageResponse;
+import com.example.fairnesstracker.common.web.Search;
 import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerRequest;
 import com.example.fairnesstracker.engineer.dto.EngineerDtos.EngineerResponse;
@@ -65,6 +66,8 @@ public class EngineerService {
         if (filter.active() != null) {
             conditions.add((engineer, query, cb) -> cb.equal(engineer.get("active"), filter.active()));
         }
+        Search.term(filter.q()).ifPresent(term -> conditions.add((engineer, query, cb) ->
+                Search.anyContains(cb, term, engineer.get("name"), engineer.get("email"))));
         Page<Engineer> page = engineerRepository.findAll(Specification.allOf(conditions),
                 Sorting.restrict(pageable, SORTABLE));
         return PageResponse.from(page.map(engineerMapper::toResponse));

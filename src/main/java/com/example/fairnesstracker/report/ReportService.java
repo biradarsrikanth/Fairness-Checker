@@ -147,7 +147,7 @@ public class ReportService {
         String teamName = team != null ? team.getName() : null;
         Snapshot snapshot = analytics.snapshot(new AnalyticsFilter(teamName, days.start(), days.end(), null));
         Scores.TimeOfDayReport timeOfDay = snapshot.summary().scores().available() ? timeOfDay(teamName, days) : null;
-        AlertFilter alertFilter = new AlertFilter(null, teamName, null, null, days.start(), days.end());
+        AlertFilter alertFilter = new AlertFilter(null, teamName, null, null, days.start(), days.end(), null);
         DataScope shiftScope = shiftScope(team);
         return new ReportData.Analytics(header("Fairness report", scope, days), snapshot, timeOfDay,
                 alerts(alertFilter), shifts(days, null, shiftScope));
@@ -157,7 +157,7 @@ public class ReportService {
         Scores.EngineerReport report = scoring.engineer(engineerId,
                 new ScoreQuery(null, days.start(), days.end(), null));
         String scope = report.engineer().name() + " · " + report.engineer().team();
-        AlertFilter alertFilter = new AlertFilter(engineerId, null, null, null, days.start(), days.end());
+        AlertFilter alertFilter = new AlertFilter(engineerId, null, null, null, days.start(), days.end(), null);
         return new ReportData.Engineer(header("Engineer report", scope, days), report, alerts(alertFilter),
                 shifts(days, engineerId, access.scope()));
     }

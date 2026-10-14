@@ -54,6 +54,14 @@ class SchemaContractTest {
     }
 
     @Test
+    void searchHasItsTrigramIndexes() {
+        // V7 adds them when pg_trgm is available, as it is in the official PostgreSQL images
+        assertThat(jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE indexname LIKE '%\\_trgm' ORDER BY 1",
+                String.class)).containsExactly("ix_alert_event_title_trgm", "ix_engineer_data_email_trgm",
+                "ix_engineer_data_name_trgm", "ix_service_name_trgm");
+    }
+
+    @Test
     void alertViewConvertsToTheTeamsTimezone() {
         long engineer = engineer("asha@example.com", team("EU", "Europe/London"));
         jdbc.update("INSERT INTO alert_event (triggered_at, engineer_id) VALUES ('2026-09-27 18:00', ?)", engineer);

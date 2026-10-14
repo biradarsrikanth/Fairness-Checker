@@ -1,6 +1,9 @@
 package com.example.fairnesstracker.alert;
 
 import com.example.fairnesstracker.alert.dto.AlertFilter;
+import com.example.fairnesstracker.common.web.Search;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -41,6 +44,13 @@ final class AlertSpecifications {
             conditions.add((alert, query, cb) ->
                     cb.lessThan(alert.get("triggeredAt"), utc(filter.end().plusDays(1), zone)));
         }
+        Search.term(filter.q()).ifPresent(term -> conditions.add((alert, query, cb) -> {
+            Predicate text = Search.anyContains(cb, term, alert.get("title"),
+                    alert.join("service", JoinType.LEFT).get("name"));
+            return Search.number(term)
+                    .map(number -> cb.or(text, cb.equal(alert.get("incidentNumber"), number)))
+                    .orElse(text);
+        }));
         return Specification.allOf(conditions);
     }
 

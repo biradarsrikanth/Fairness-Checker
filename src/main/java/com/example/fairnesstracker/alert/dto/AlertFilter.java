@@ -9,7 +9,8 @@ import java.time.LocalDate;
 
 /**
  * Optional filters for the alert list, bound from query parameters; they combine with AND.
- * {@code start}/{@code end} are UTC dates, both inclusive, on the trigger time.
+ * {@code start}/{@code end} are UTC dates, both inclusive, on the trigger time. {@code q} searches the title and
+ * the service's name (and the PagerDuty incident number, when it's a number).
  */
 public record AlertFilter(
         @Positive Long engineerId,
@@ -18,6 +19,7 @@ public record AlertFilter(
         @Pattern(regexp = "triggered|acknowledged|resolved",
                 message = "must be one of triggered, acknowledged, resolved") String status,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
+        @Size(max = 100) String q
 ) {
 }

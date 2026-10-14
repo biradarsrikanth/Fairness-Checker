@@ -7,6 +7,7 @@ import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.common.web.PageResponse;
+import com.example.fairnesstracker.common.web.Search;
 import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
@@ -81,11 +82,9 @@ public class UserService {
         if (filter.enabled() != null) {
             conditions.add((user, query, cb) -> cb.equal(user.get("enabled"), filter.enabled()));
         }
-        if (filter.q() != null && !filter.q().isBlank()) {
-            String pattern = "%" + filter.q().strip().toLowerCase() + "%";
-            conditions.add((user, query, cb) -> cb.or(cb.like(cb.lower(user.get("email")), pattern),
-                    cb.like(cb.lower(user.get("fullName")), pattern)));
-        }
+        // The user's % and _ are taken literally (they used to match anything)
+        Search.term(filter.q()).ifPresent(term -> conditions.add((user, query, cb) ->
+                Search.anyContains(cb, term, user.get("email"), user.get("fullName"))));
         return PageResponse.from(users.findAll(Specification.allOf(conditions), Sorting.restrict(pageable, SORTABLE))
                 .map(mapper::toResponse));
     }

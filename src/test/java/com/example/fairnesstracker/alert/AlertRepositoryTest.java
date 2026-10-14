@@ -31,6 +31,9 @@ class AlertRepositoryTest {
     @Autowired
     private EngineerRepository engineerRepository;
 
+    @Autowired
+    private MonitoredServiceRepository serviceRepository;
+
     @Test
     void saveAndFind_works() {
 
@@ -81,7 +84,7 @@ class AlertRepositoryTest {
         alert(null, "P1", "resolved", LocalDateTime.of(2026, 9, 15, 12, 0));   // unattributed
 
         var filter = new AlertFilter(null, "Platform", "P1", "resolved",
-                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
+                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), null);
         var page = repo.findAll(AlertSpecifications.matching(filter, ZoneOffset.UTC), PageRequest.of(0, 10));
 
         assertEquals(List.of(matching.getId()), page.map(AlertEvent::getId).getContent());
@@ -93,9 +96,42 @@ class AlertRepositoryTest {
         alert(engineer("Asha", "asha@example.com", teamRepository.save(new Team("Platform", "Asia/Kolkata"))),
                 "P2", "triggered", LocalDateTime.of(2026, 9, 16, 12, 0));
 
-        var everything = new AlertFilter(null, null, null, null, null, null);
+        var everything = new AlertFilter(null, null, null, null, null, null, null);
         assertEquals(2, repo.findAll(AlertSpecifications.matching(everything, ZoneOffset.UTC), PageRequest.of(0, 10))
                 .getTotalElements());
+    }
+
+    @Test
+    void searchesTitlesServicesAndIncidentNumbersIgnoringCase() {
+        MonitoredService payments = new MonitoredService();
+        payments.setName("Payments API");
+        payments = serviceRepository.save(payments);
+
+        AlertEvent byTitle = alert(null, "P2", "triggered", LocalDateTime.of(2026, 9, 15, 12, 0));
+        byTitle.setTitle("Disk FULL on db-7");
+        AlertEvent byService = alert(null, "P2", "triggered", LocalDateTime.of(2026, 9, 15, 13, 0));
+        byService.setTitle("Latency spike");
+        byService.setService(payments);
+        AlertEvent byNumber = alert(null, "P2", "triggered", LocalDateTime.of(2026, 9, 15, 14, 0));
+        byNumber.setTitle("Something else");
+        byNumber.setIncidentNumber(4521);
+        AlertEvent wildcard = alert(null, "P2", "triggered", LocalDateTime.of(2026, 9, 15, 15, 0));
+        wildcard.setTitle("CPU at 100% on web-1");
+        repo.saveAll(List.of(byTitle, byService, byNumber, wildcard));
+
+        assertEquals(List.of(byTitle.getId()), search("disk full"));
+        assertEquals(List.of(byService.getId()), search("PAYMENTS"));
+        assertEquals(List.of(byNumber.getId()), search("#4521"));
+        assertEquals(List.of(byNumber.getId()), search("4521"));
+        // % and _ are taken literally, not as wildcards
+        assertEquals(List.of(wildcard.getId()), search("100%"));
+        assertEquals(List.of(), search("_"));
+    }
+
+    private List<Long> search(String q) {
+        var filter = new AlertFilter(null, null, null, null, null, null, q);
+        return repo.findAll(AlertSpecifications.matching(filter, ZoneOffset.UTC), PageRequest.of(0, 10))
+                .map(AlertEvent::getId).getContent();
     }
 
     private Engineer engineer(String name, String email, Team team) {
