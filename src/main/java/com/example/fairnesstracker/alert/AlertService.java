@@ -1,16 +1,18 @@
 package com.example.fairnesstracker.alert;
 
-import com.example.fairnesstracker.analytics.AnalyticsProperties;
 import com.example.fairnesstracker.alert.dto.AlertFilter;
-import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.alert.dto.AlertRequest;
 import com.example.fairnesstracker.alert.dto.AlertResponse;
+import com.example.fairnesstracker.analytics.AnalyticsProperties;
+import com.example.fairnesstracker.audit.AuditAction;
+import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.common.web.Sorting;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
+import com.example.fairnesstracker.security.DataScope;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,7 +22,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -33,17 +37,19 @@ public class AlertService {
     private final EngineerRepository engineerRepository;
     private final AlertAssignmentRepository assignmentRepository;
     private final AlertMapper alertMapper;
+    private final AuditService audit;
     // Filter dates are days here, as on the analytics pages
     private final ZoneId zone;
 
     public AlertService(AlertRepository alertRepository, EngineerRepository engineerRepository,
                         AlertAssignmentRepository assignmentRepository, AlertMapper alertMapper,
-                        AnalyticsProperties analytics) {
+                        AuditService audit, AnalyticsProperties analytics) {
         this.zone = analytics.zone();
         this.alertRepository = alertRepository;
         this.engineerRepository = engineerRepository;
         this.assignmentRepository = assignmentRepository;
         this.alertMapper = alertMapper;
+        this.audit = audit;
     }
 
     /** A manually reported alert, paged to the given engineer now. */
@@ -95,8 +101,14 @@ public class AlertService {
                 .toList();
     }
 
-    public void deleteEvent(Long id){
-        alertRepository.delete(find(id));
+    public void deleteEvent(Long id) {
+        AlertEvent alert = find(id);
+        alertRepository.delete(alert);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("title", alert.getTitle());
+        details.put("pagerDutyIncidentId", alert.getPagerDutyIncidentId());
+        details.put("triggeredAt", alert.getTriggeredAt().toString());
+        audit.record(AuditAction.ALERT_DELETED, "ALERT", id, details);
     }
 
     private AlertEvent find(Long id) {

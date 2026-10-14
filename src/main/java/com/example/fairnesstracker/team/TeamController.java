@@ -27,15 +27,17 @@ public class TeamController {
         this.access = access;
     }
 
-    @Operation(operationId = "listTeams")
+    @Operation(operationId = "listTeams", summary = "The teams you can see",
+            description = "Admins: every team. Managers: their teams. Engineers: their own team.")
     @GetMapping
     public List<TeamResponse> getAll() {
-        return teamService.getAll();
+        return teamService.getAll(access.scope());
     }
 
     @Operation(operationId = "getTeam")
     @GetMapping("/{id}")
     public TeamResponse getById(@PathVariable Long id) {
+        access.requireTeam(id);
         return teamService.getById(id);
     }
 

@@ -4,6 +4,7 @@ import com.example.fairnesstracker.common.exception.ConflictException;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.engineer.EngineerRepository;
+import com.example.fairnesstracker.security.DataScope;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamRequest;
 import com.example.fairnesstracker.team.dto.TeamDtos.TeamResponse;
 import org.springframework.data.domain.Sort;
@@ -28,9 +29,13 @@ public class TeamService {
         this.teamMapper = teamMapper;
     }
 
+    /** The teams {@code scope} may see, by name. */
     @Transactional(readOnly = true)
-    public List<TeamResponse> getAll() {
-        return teamRepository.findAll(Sort.by("name")).stream().map(teamMapper::toResponse).toList();
+    public List<TeamResponse> getAll(DataScope scope) {
+        return teamRepository.findAll(Sort.by("name")).stream()
+                .filter(team -> scope.canSeeTeam(team.getId()))
+                .map(teamMapper::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -38,21 +43,24 @@ public class TeamService {
         return teamMapper.toResponse(find(id));
     }
 
+    // Names are stored trimmed, as every lookup by name trims what it's given
     public TeamResponse create(TeamRequest request) {
-        if (teamRepository.findByName(request.name()).isPresent()) {
-            throw duplicateName(request.name());
+        String name = request.name().strip();
+        if (teamRepository.findByName(name).isPresent()) {
+            throw duplicateName(name);
         }
-        return teamMapper.toResponse(teamRepository.save(new Team(request.name(), timezone(request.timezone()))));
+        return teamMapper.toResponse(teamRepository.save(new Team(name, timezone(request.timezone()))));
     }
 
     public TeamResponse update(Long id, TeamRequest request) {
         Team team = find(id);
-        teamRepository.findByName(request.name())
+        String name = request.name().strip();
+        teamRepository.findByName(name)
                 .filter(other -> !other.getId().equals(id))
                 .ifPresent(other -> {
-                    throw duplicateName(request.name());
+                    throw duplicateName(name);
                 });
-        team.setName(request.name());
+        team.setName(name);
         team.setTimezone(timezone(request.timezone()));
         return teamMapper.toResponse(team);
     }
@@ -68,7 +76,7 @@ public class TeamService {
     /** Finds a team by name for engineer requests; unknown names are a client error, not a new team. */
     @Transactional(readOnly = true)
     public Team findByName(String name) {
-        return teamRepository.findByName(name)
+        return teamRepository.findByName(name.strip())
                 .orElseThrow(() -> ValidationException.onField("team",
                         "Unknown team '" + name + "'; create it via /api/v1/teams"));
     }

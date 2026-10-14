@@ -245,7 +245,7 @@ public class UserService {
     }
 
     private boolean isLastEnabledAdmin(AppUser user) {
-        return user.getRole() == Role.ADMIN && users.countByRoleAndEnabledTrue(Role.ADMIN) <= 1;
+        return user.getRole() == Role.ADMIN && users.lockEnabledByRole(Role.ADMIN).size() <= 1;
     }
 
     private static boolean isCurrentUser(AppUser user) {

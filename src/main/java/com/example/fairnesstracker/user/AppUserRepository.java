@@ -1,14 +1,17 @@
 package com.example.fairnesstracker.user;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpecificationExecutor<AppUser> {
@@ -34,7 +37,10 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long>, JpaSpec
 
     Optional<AppUser> findByEngineer_Id(Long engineerId);
 
-    long countByRoleAndEnabledTrue(Role role);
+    // Locks the enabled admins until the transaction ends, so two admins can't disable each other at once
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM AppUser u WHERE u.role = :role AND u.enabled = true")
+    List<AppUser> lockEnabledByRole(@Param("role") Role role);
 
     // AccessPolicy: is this team one of the manager's?
     boolean existsByIdAndTeams_Id(Long userId, Long teamId);

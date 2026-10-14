@@ -16,6 +16,8 @@ public enum AuditAction {
     USER_PASSWORD_RESET,
     USER_UNLOCKED,
     USER_DELETED,
+    // Data removed by an admin
+    ALERT_DELETED,
     // PagerDuty operations started by a person
     SYNC_TRIGGERED,
     INCIDENT_RESOLVED,

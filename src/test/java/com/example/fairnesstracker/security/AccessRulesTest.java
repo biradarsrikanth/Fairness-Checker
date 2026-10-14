@@ -3,6 +3,8 @@ package com.example.fairnesstracker.security;
 import com.example.fairnesstracker.alert.AlertAssignmentRepository;
 import com.example.fairnesstracker.alert.AlertEvent;
 import com.example.fairnesstracker.alert.AlertRepository;
+import com.example.fairnesstracker.audit.AuditAction;
+import com.example.fairnesstracker.audit.AuditLogRepository;
 import com.example.fairnesstracker.auth.RefreshTokenRepository;
 import com.example.fairnesstracker.engineer.Engineer;
 import com.example.fairnesstracker.engineer.EngineerRepository;
@@ -27,6 +29,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.time.Instant;
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,6 +55,7 @@ class AccessRulesTest {
     @Autowired private AlertRepository alerts;
     @Autowired private AlertAssignmentRepository assignments;
     @Autowired private RefreshTokenRepository refreshTokens;
+    @Autowired private AuditLogRepository auditLog;
 
     private Team sre;
     private Team platform;
@@ -119,6 +123,19 @@ class AccessRulesTest {
                 .andExpect(jsonPath("$.totalElements").value(0));
     }
 
+    @Test
+    void eachRoleSeesOnlyItsOwnTeams() throws Exception {
+        call(admin, get("/api/v1/teams")).andExpect(jsonPath("$.length()").value(2));
+        call(manager, get("/api/v1/teams"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("SRE"));
+        call(engineer, get("/api/v1/teams"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("SRE"));
+        forbidden(call(engineer, get("/api/v1/teams/{id}", platform.getId())));
+        call(engineer, get("/api/v1/teams/{id}", sre.getId())).andExpect(status().isOk());
+    }
+
     // --- Single records ------------------------------------------------------------------------------
 
     @Test
@@ -162,6 +179,10 @@ class AccessRulesTest {
 
         call(admin, json(post("/api/v1/teams"), "{\"name\": \"Ops\"}")).andExpect(status().isCreated());
         call(admin, delete("/api/v1/alerts/{id}", raviAlert.getId())).andExpect(status().isNoContent());
+        assertThat(auditLog.findAll()).anySatisfy(entry -> {
+            assertThat(entry.getAction()).isEqualTo(AuditAction.ALERT_DELETED);
+            assertThat(entry.getEntityId()).isEqualTo(raviAlert.getId().toString());
+        });
     }
 
     @Test
