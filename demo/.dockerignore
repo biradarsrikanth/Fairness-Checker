@@ -2,4 +2,5 @@ datasets
 real-data.sql
 compose.yaml
 load-real-data.sh
-db-init.sql
+db-init.sh
+secrets.sh
