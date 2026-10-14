@@ -16,7 +16,8 @@ gateway's and the scorer's log lines for that request: search both for it when s
 
 ## Start and stop
 
-**Demo** (everything, a throwaway database with made-up data; from the folder that holds the three repos):
+**Demo** (everything, with a throwaway database holding real incident data from two published logs; from the
+folder that holds the three repos):
 
 ```bash
 docker compose up --build -d      # http://localhost:8088, sign-ins in the file's header
@@ -24,6 +25,12 @@ docker compose ps                 # seed shows "Exited (0)" once the data is in
 docker compose down               # stop, keep the data
 docker compose down -v            # stop and forget the data; the next start seeds afresh
 ```
+
+**Loading the real incident data into another database** (Azure, say): `demo/load-real-data.sh` reads the
+database settings from `Fairness-Checker/.env`, backs the database up, asks for the host name and loads
+`demo/real-data.sql`. It only adds rows and creates no logins; a second run adds nothing.
+`python3 -I demo/import_real_data.py` rebuilds that file from the original logs, with the dates moved so the
+latest incidents are from the past week.
 
 **Against the real database**, each repo from its own folder, after `docker network create fairness-net` once
 per machine: start the scorer, then the gateway, then the web app (`docker compose up --build -d` in each).

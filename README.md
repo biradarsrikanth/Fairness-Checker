@@ -7,7 +7,7 @@ Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Operations: [docs/RUNBOOK.
 the `fairness-web` repository.
 
 **Just want to see it?** `docker compose up --build` in the folder that holds the three repositories starts the
-whole app with a throwaway database and made-up data at <http://localhost:8088> (sign-ins are in that
+whole app with a throwaway database holding real incident data (two published logs) at <http://localhost:8088> (sign-ins are in that
 `docker-compose.yml`). It doesn't touch Azure or PagerDuty.
 
 ## Run with Docker
