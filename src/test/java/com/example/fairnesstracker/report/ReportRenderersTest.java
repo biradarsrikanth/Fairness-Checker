@@ -97,6 +97,16 @@ class ReportRenderersTest {
     }
 
     @Test
+    void engineerWorkbookWithoutScoresStillListsAlertsAndShifts() throws IOException {
+        byte[] file = excel.render(ReportFixtures.engineer(false));
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file))) {
+            assertThat(sheetNames(workbook)).containsExactly("Summary", "Alerts", "On-call");
+            assertThat(text(workbook.getSheet("Summary"))).contains("the scoring service didn't answer");
+            assertThat(find(workbook.getSheet("Summary"), "Burnout score (0–100)")).isNull();
+        }
+    }
+
+    @Test
     void analyticsPdfReadsLikeThePage() throws IOException {
         byte[] file = pdf.render(ReportFixtures.analytics(true));
         Files.write(SAMPLES.resolve("analytics.pdf"), file);
@@ -132,6 +142,16 @@ class ReportRenderersTest {
             String text = new PDFTextStripper().getText(document);
             assertThat(text).contains("Engineer report", "Asha Rao · SRE", "64", "High risk",
                     "What makes up the score", "35 of 50 points", "Time of day", "Latest alerts");
+        }
+    }
+
+    @Test
+    void engineerPdfWithoutScoresSaysWhy() throws IOException {
+        byte[] file = pdf.render(ReportFixtures.engineer(false));
+        try (PDDocument document = Loader.loadPDF(file)) {
+            String text = new PDFTextStripper().getText(document).replaceAll("\\s+", " ");
+            assertThat(text).contains("Asha Rao · SRE", "the scoring service didn't answer", "Latest alerts")
+                    .doesNotContain("What makes up the score");
         }
     }
 

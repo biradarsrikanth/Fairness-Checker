@@ -188,12 +188,22 @@ public class ExcelReportRenderer implements ReportRenderer {
     // --- Engineer -------------------------------------------------------------------------------------
 
     private void engineer(SXSSFWorkbook workbook, Styles styles, ReportData.Engineer data) {
-        Scores.EngineerReport report = data.report();
-        Scores.BurnoutScore burnout = report.burnout();
         SheetWriter sheet = new SheetWriter(workbook.createSheet("Summary"), styles, 34, 18);
         headerRows(sheet, data.header());
-        sheet.text("Status", report.active() ? "Active" : "Inactive");
+        sheet.text("Status", data.active() ? "Active" : "Inactive");
         sheet.blank();
+        if (data.report() != null) {
+            scores(workbook, styles, sheet, data.report());
+        } else {
+            sheet.note("The scores are missing: the scoring service didn't answer when this report was made. "
+                    + "The alerts and shifts are complete.");
+        }
+        alerts(workbook, styles, data.alerts(), data.header().zone());
+        shifts(workbook, styles, data.shifts(), data.header().zone());
+    }
+
+    private void scores(SXSSFWorkbook workbook, Styles styles, SheetWriter sheet, Scores.EngineerReport report) {
+        Scores.BurnoutScore burnout = report.burnout();
         sheet.headings("Figure", "Value");
         sheet.row().text("Burnout score (0–100)").dec(burnout.score());
         sheet.text("Risk", ReportText.humanize(burnout.risk()));
@@ -218,9 +228,6 @@ public class ExcelReportRenderer implements ReportRenderer {
         times.row().text("Afternoon").text("12:00–18:00").num(counts.afternoon());
         times.row().text("Evening").text("18:00–23:00").num(counts.evening());
         times.row().text("Night").text("23:00–06:00").num(counts.night());
-
-        alerts(workbook, styles, data.alerts(), data.header().zone());
-        shifts(workbook, styles, data.shifts(), data.header().zone());
     }
 
     // --- Shared sheets --------------------------------------------------------------------------------

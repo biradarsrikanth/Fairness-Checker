@@ -11,6 +11,7 @@ import com.example.fairnesstracker.audit.AuditAction;
 import com.example.fairnesstracker.audit.AuditService;
 import com.example.fairnesstracker.common.exception.ResourceNotFoundException;
 import com.example.fairnesstracker.common.exception.ScoringServiceException;
+import com.example.fairnesstracker.common.exception.TooManyRequestsException;
 import com.example.fairnesstracker.common.exception.ValidationException;
 import com.example.fairnesstracker.common.web.PageResponse;
 import com.example.fairnesstracker.engineer.Engineer;
@@ -36,6 +37,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -47,6 +49,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -62,6 +65,7 @@ import java.util.function.Supplier;
 public class ReportService {
 
     static final int DEFAULT_DAYS = 30;
+    static final Duration BUSY_RETRY_AFTER = Duration.ofSeconds(5);
 
     private final AnalyticsService analytics;
     private final ScoringClient scoring;
@@ -76,6 +80,8 @@ public class ReportService {
     private final ZoneId zone;
     private final Clock clock;
     private final Map<ReportExport.Format, ReportRenderer> renderers = new EnumMap<>(ReportExport.Format.class);
+    // One permit per report being built (ReportProperties.maxConcurrent)
+    private final Semaphore building;
 
     public ReportService(AnalyticsService analytics, ScoringClient scoring, AlertService alerts, OncallService oncall,
                          AccessPolicy access, TeamRepository teams, EngineerRepository engineers,
@@ -94,6 +100,7 @@ public class ReportService {
         this.zone = analyticsProperties.zone();
         this.clock = clock;
         renderers.forEach(renderer -> this.renderers.put(renderer.format(), renderer));
+        this.building = new Semaphore(properties.maxConcurrent());
     }
 
     /** The analytics page as a file: a team, or every team the caller may see. */
@@ -103,10 +110,12 @@ public class ReportService {
         Team team = team(teamName);
         String scope = team != null ? team.getName() : "All teams";
         String fileName = fileName("analytics", team != null ? team.getName() : "all-teams", days, format);
-        ReportExport export = exports.save(new ReportExport(CurrentUser.id().orElse(null),
-                ReportExport.Type.ANALYTICS, format, team != null ? team.getId() : null, null, days.start(),
-                days.end(), fileName));
-        return produce(export, () -> gatherAnalytics(team, scope, days), details(export, scope));
+        return whenBuildable(() -> {
+            ReportExport export = exports.save(new ReportExport(CurrentUser.id().orElse(null),
+                    ReportExport.Type.ANALYTICS, format, team != null ? team.getId() : null, null, days.start(),
+                    days.end(), fileName));
+            return produce(export, () -> gatherAnalytics(team, scope, days), details(export, scope));
+        });
     }
 
     /** One engineer's report: their burnout and its parts, time of day, alerts and shifts. */
@@ -117,10 +126,12 @@ public class ReportService {
         Engineer engineer = engineers.findById(engineerId)
                 .orElseThrow(() -> ResourceNotFoundException.of("Engineer", engineerId));
         String fileName = fileName("engineer", engineer.getName(), days, format);
-        ReportExport export = exports.save(new ReportExport(CurrentUser.id().orElse(null),
-                ReportExport.Type.ENGINEER, format, engineers.findTeamIdById(engineerId).orElse(null), engineerId,
-                days.start(), days.end(), fileName));
-        return produce(export, () -> gatherEngineer(engineerId, days), details(export, engineer.getName()));
+        return whenBuildable(() -> {
+            ReportExport export = exports.save(new ReportExport(CurrentUser.id().orElse(null),
+                    ReportExport.Type.ENGINEER, format, engineers.findTeamIdById(engineerId).orElse(null), engineerId,
+                    days.start(), days.end(), fileName));
+            return produce(export, () -> gatherEngineer(engineer, days), details(export, engineer.getName()));
+        });
     }
 
     /** The caller's own downloads, newest first, naming the team or engineer each covered. */
@@ -153,13 +164,20 @@ public class ReportService {
                 alerts(alertFilter), shifts(days, null, shiftScope));
     }
 
-    private ReportData gatherEngineer(long engineerId, Days days) {
-        Scores.EngineerReport report = scoring.engineer(engineerId,
-                new ScoreQuery(null, days.start(), days.end(), null));
-        String scope = report.engineer().name() + " · " + report.engineer().team();
+    // Like the analytics report, it's still made when the scorer can't answer: without the scores
+    private ReportData gatherEngineer(Engineer engineer, Days days) {
+        long engineerId = engineer.getId();
+        Scores.EngineerReport report;
+        try {
+            report = scoring.engineer(engineerId, new ScoreQuery(null, days.start(), days.end(), null));
+        } catch (ScoringServiceException e) {
+            log.warn("Scores unavailable for an engineer report: {}", e.getMessage());
+            report = null;
+        }
+        Scores.EngineerRef who = new Scores.EngineerRef(engineerId, engineer.getName(), engineer.getTeam().getName());
         AlertFilter alertFilter = new AlertFilter(engineerId, null, null, null, days.start(), days.end(), null);
-        return new ReportData.Engineer(header("Engineer report", scope, days), report, alerts(alertFilter),
-                shifts(days, engineerId, access.scope()));
+        return new ReportData.Engineer(header("Engineer report", who.name() + " · " + who.team(), days), who,
+                engineer.isActive(), report, alerts(alertFilter), shifts(days, engineerId, access.scope()));
     }
 
     // Time of day isn't part of the snapshot; the same team, with an engineer seeing only their own row
@@ -200,6 +218,19 @@ public class ReportService {
     }
 
     // --- Producing ------------------------------------------------------------------------------------
+
+    // Refused before anything is recorded: a busy server isn't a failed export
+    private ReportFile whenBuildable(Supplier<ReportFile> build) {
+        if (!building.tryAcquire()) {
+            throw new TooManyRequestsException("Other reports are being built right now; try again in a moment",
+                    BUSY_RETRY_AFTER);
+        }
+        try {
+            return build.get();
+        } finally {
+            building.release();
+        }
+    }
 
     private ReportFile produce(ReportExport export, Supplier<ReportData> gather, Map<String, Object> details) {
         long started = System.nanoTime();

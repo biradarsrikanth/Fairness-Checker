@@ -43,8 +43,12 @@ public sealed interface ReportData {
                      Rows<AlertResponse> alerts, Rows<OncallShiftResponse> shifts) implements ReportData {
     }
 
-    /** One engineer: their scores from the scorer, alerts and shifts. */
-    record Engineer(Header header, Scores.EngineerReport report, Rows<AlertResponse> alerts,
+    /**
+     * One engineer: their scores from the scorer, alerts and shifts. {@code report} is null when the scorer
+     * couldn't answer; the alerts and shifts come from the database and are always there.
+     */
+    record Engineer(Header header, Scores.EngineerRef engineer, boolean active,
+                    Scores.@Nullable EngineerReport report, Rows<AlertResponse> alerts,
                     Rows<OncallShiftResponse> shifts) implements ReportData {
     }
 }

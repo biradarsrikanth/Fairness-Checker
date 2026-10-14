@@ -155,12 +155,23 @@ public class PdfReportRenderer implements ReportRenderer {
     }
 
     private void engineer(Context context, ReportData.Engineer data) {
-        Scores.EngineerReport report = data.report();
-        Scores.BurnoutScore burnout = report.burnout();
         ZoneId zone = data.header().zone();
+        context.setVariable("engineer", data.engineer());
+        context.setVariable("active", data.active());
+        context.setVariable("alerts", recent(data.alerts().items(), zone));
+        context.setVariable("alertTotal", data.alerts().total());
+        context.setVariable("shiftCount", data.shifts().total());
+        context.setVariable("shiftHours", hours(data.shifts().items()));
+        Scores.EngineerReport report = data.report();
+        context.setVariable("scoresAvailable", report != null);
+        if (report != null) {
+            scores(context, report);
+        }
+    }
+
+    private void scores(Context context, Scores.EngineerReport report) {
+        Scores.BurnoutScore burnout = report.burnout();
         double confidence = Math.min(1, burnout.alertCount() / 5.0);
-        context.setVariable("engineer", report.engineer());
-        context.setVariable("active", report.active());
         context.setVariable("score", String.valueOf(Math.round(burnout.score())));
         context.setVariable("risk", ReportText.humanize(burnout.risk()));
         context.setVariable("riskClass", burnout.risk().toLowerCase());
@@ -184,10 +195,6 @@ public class PdfReportRenderer implements ReportRenderer {
         Scores.TimeOfDayCounts counts = report.timeOfDay();
         int total = counts.morning() + counts.afternoon() + counts.evening() + counts.night();
         context.setVariable("timeOfDayChart", total > 0 ? charts.timeOfDay(counts, 520, 180) : null);
-        context.setVariable("alerts", recent(data.alerts().items(), zone));
-        context.setVariable("alertTotal", data.alerts().total());
-        context.setVariable("shiftCount", data.shifts().total());
-        context.setVariable("shiftHours", hours(data.shifts().items()));
     }
 
     private static PartView part(String label, String description, double component, int weight, double confidence) {

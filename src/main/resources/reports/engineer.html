@@ -21,7 +21,14 @@
   <div th:replace="~{layout :: footer}"></div>
   <div th:replace="~{layout :: title}"></div>
 
-  <section>
+  <section th:unless="${scoresAvailable}">
+    <h2>Burnout</h2>
+    <p>The scores are missing from this report: the scoring service didn't answer when it was made. The alerts
+      below are complete; download the report again later for the scores.</p>
+    <p class="muted" th:if="${!active}">Inactive</p>
+  </section>
+
+  <section th:if="${scoresAvailable}">
     <h2>Burnout</h2>
     <p>
       <span class="score" th:text="${score}">64</span>
@@ -38,7 +45,7 @@
     </table>
   </section>
 
-  <section>
+  <section th:if="${scoresAvailable}">
     <h2>What makes up the score</h2>
     <p class="muted small"
        th:text="${score + ' of 100 points' + (scaled != null ? ', scaled by ' + scaled + ' for having fewer than 5 alerts' : '')}">parts</p>

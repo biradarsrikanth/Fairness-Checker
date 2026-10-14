@@ -91,13 +91,17 @@ final class ReportFixtures {
     }
 
     static ReportData.Engineer engineer() {
+        return engineer(true);
+    }
+
+    static ReportData.Engineer engineer(boolean scored) {
         Scores.Window scoreWindow = new Scores.Window(START.atStartOfDay().atOffset(IST),
                 END.plusDays(1).atStartOfDay().atOffset(IST), ZONE.getId());
         Scores.EngineerReport report = new Scores.EngineerReport(scoreWindow,
                 new Scores.EngineerRef(3, "Asha Rao", "SRE"), true, burnout(3, "Asha Rao", 64, "HIGH"), 60,
                 new Scores.TimeOfDayCounts(4, 2, 3, 3));
-        return new ReportData.Engineer(header("Engineer report", "Asha Rao · SRE"), report,
-                new Rows<>(alerts(3), 3), new Rows<>(shifts(), 2));
+        return new ReportData.Engineer(header("Engineer report", "Asha Rao · SRE"), report.engineer(), true,
+                scored ? report : null, new Rows<>(alerts(3), 3), new Rows<>(shifts(), 2));
     }
 
     static List<AlertResponse> alerts(int count) {

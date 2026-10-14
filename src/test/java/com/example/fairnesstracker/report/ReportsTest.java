@@ -220,7 +220,7 @@ class ReportsTest {
     }
 
     @Test
-    void withoutTheScorerTheAnalyticsReportSaysWhyAndTheEngineerReportFails() throws Exception {
+    void withoutTheScorerBothReportsAreStillMadeAndSayWhy() throws Exception {
         scorerDown = true;
         byte[] file = call(admin, "/api/v1/reports/analytics", "format", "xlsx", "team", "SRE")
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
@@ -229,11 +229,16 @@ class ReportsTest {
                     .startsWith("The scoring service didn't answer");
         }
 
-        call(admin, "/api/v1/reports/engineers/1", "format", "pdf").andExpect(status().is5xxServerError());
-        Map<String, Object> failed = jdbc.queryForMap("SELECT * FROM report_export ORDER BY id DESC LIMIT 1");
-        assertThat(failed).containsEntry("report_type", "ENGINEER").containsEntry("status", "FAILED")
+        // The engineer's alerts and shifts come from the database: only the scores are missing
+        byte[] workbookFile = call(admin, "/api/v1/reports/engineers/1", "format", "xlsx")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(workbookFile))) {
+            assertThat(workbook.getSheet("Alerts")).isNotNull();
+            assertThat(workbook.getSheet("Time of day")).isNull();
+        }
+        Map<String, Object> made = jdbc.queryForMap("SELECT * FROM report_export ORDER BY id DESC LIMIT 1");
+        assertThat(made).containsEntry("report_type", "ENGINEER").containsEntry("status", "SUCCEEDED")
                 .containsEntry("engineer_id", 1L);
-        assertThat((String) failed.get("error")).isNotBlank();
     }
 
     @Test

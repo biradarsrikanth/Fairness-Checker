@@ -11,12 +11,15 @@ import org.springframework.validation.annotation.Validated;
  * @param maxWindowDays the longest window a report covers; at most 366, the on-call listing's limit
  * @param maxAlertRows  alerts listed in the Excel workbook (the PDF lists the latest few); the rest are counted
  * @param maxShiftRows  on-call shifts listed
+ * @param maxConcurrent reports built at the same time by this instance; more are refused with 429, so a
+ *                      burst of large downloads can't run the gateway out of memory
  */
 @Validated
 @ConfigurationProperties("report")
 public record ReportProperties(
         @Min(1) @Max(366) int maxWindowDays,
         @Min(1) @Max(100_000) int maxAlertRows,
-        @Min(1) @Max(100_000) int maxShiftRows
+        @Min(1) @Max(100_000) int maxShiftRows,
+        @Min(1) @Max(64) int maxConcurrent
 ) {
 }
