@@ -1,11 +1,12 @@
 # Architecture
 
-On-call fairness and burnout tracker for PagerDuty. Two services share one PostgreSQL database with a
-strict ownership split.
+On-call fairness and burnout tracker for PagerDuty. Three repositories: a web app, and two services that
+share one PostgreSQL database with a strict ownership split.
 
 ```mermaid
 flowchart LR
-    Client -- "REST /api/v1" --> GW
+    Browser -- "HTTPS" --> WEB["fairness-web<br/>Angular app served by Nginx"]
+    WEB -- "/api (same origin)" --> GW
     PD[PagerDuty] -- "webhook (HMAC-SHA256)" --> GW
     GW -- "incremental sync (REST)" --> PD
     GW["Fairness-Checker<br/>Spring Boot · gateway + system of record"]
@@ -17,12 +18,12 @@ flowchart LR
 
 ## Responsibilities
 
-| Concern | Fairness-Checker (Java) | fairneess-scorer (Python) |
-|---|---|---|
-| Role | Public gateway, ingestion, system of record | Internal, stateless computation |
-| Database | Owns every table; the only writer | Reads two views only |
-| Schema changes | Flyway migrations in `src/main/resources/db/migration`; Hibernate only validates | None |
-| Exposure | Public (Azure App Service) | Private network only, API key required |
+| Concern | fairness-web (Angular) | Fairness-Checker (Java) | fairneess-scorer (Python) |
+|---|---|---|---|
+| Role | The user interface | Public gateway, ingestion, auth, analytics, reports, system of record | Internal, stateless computation |
+| Database | None | Owns every table; the only writer | Reads the four `scoring_*_v` views only |
+| Schema changes | None | Flyway migrations in `src/main/resources/db/migration`; Hibernate only validates | None |
+| Exposure | Public; Nginx passes `/api` to the gateway, so the browser sees one origin | Public behind the web app (or directly, for the API) | Private network only, API key required |
 
 ## Code layout (gateway)
 
@@ -33,6 +34,10 @@ entities by the services, which own the rules). Controllers only call services:
 | Package | Contents |
 |---|---|
 | `team`, `engineer`, `alert`, `oncall` | Core data and its REST API (`alert` also holds `MonitoredService`) |
+| `auth`, `user`, `security` | Sign-in, refresh tokens, lockout and rate limits; user accounts and the first admin; JWT filter chain, `AccessPolicy` and `DataScope` (what the caller may see) |
+| `analytics` | The analytics page: counts and averages in SQL over `analytics_alert_v`, Gini, burnout and trends from the scorer, all in one `Snapshot` |
+| `report` | PDF and Excel reports built from the same `Snapshot` (`render/`), and the `report_export` history |
+| `audit` | `audit_log` entries (sign-ins, user changes, syncs, replays, exports) and the admin listing |
 | `pagerduty` | PagerDuty client calls, incident and on-call sync, scheduler, sync activity for admins; `sync/` runs syncs under a lock and records them; `webhook/` receives signed webhooks and stores each event once |
 | `scoring` | `ScoringClient` and the `/api/v1/scores` proxy to the scorer |
 | `common` | `config/` (HTTP clients, OpenAPI), `exception/` (`ApiError`, global handler), `web/` (request id filter) |
@@ -86,6 +91,54 @@ erDiagram
                    timestamp ends_at }
 ```
 
+Accounts and operations (V4, V5):
+
+```mermaid
+erDiagram
+    app_user |o--o| engineer_data : "is (engineers)"
+    app_user ||--o{ user_team_access : "manages (managers)"
+    team ||--o{ user_team_access : ""
+    app_user ||--o{ refresh_token : "signed in"
+    app_user |o--o{ report_export : "downloaded"
+    app_user |o--o{ sync_run : "triggered"
+
+    app_user { bigint id PK
+               varchar email UK "case-insensitive"
+               varchar password_hash "BCrypt"
+               varchar role "ADMIN|MANAGER|ENGINEER"
+               int failed_login_count
+               timestamptz locked_until
+               boolean must_change_password }
+    refresh_token { bigint id PK
+                    varchar token_hash "SHA-256"
+                    uuid family_id "one sign-in"
+                    timestamptz expires_at
+                    timestamptz revoked_at
+                    bigint replaced_by_id FK }
+    report_export { bigint id PK
+                    varchar report_type "ANALYTICS|ENGINEER"
+                    varchar format "PDF|XLSX"
+                    date window_start
+                    date window_end
+                    varchar status "RUNNING|SUCCEEDED|FAILED" }
+    sync_run { bigint id PK
+               varchar kind "INCIDENTS|ONCALLS"
+               varchar trigger_type "SCHEDULED|MANUAL"
+               varchar status }
+    audit_log { bigint id PK
+                varchar action
+                bigint user_id "kept after the user goes"
+                jsonb details
+                varchar request_id }
+    webhook_event { bigint id PK
+                    varchar pagerduty_event_id UK
+                    varchar status "RECEIVED|PROCESSED|IGNORED|FAILED"
+                    jsonb payload }
+```
+
+`shedlock` (V5) holds the sync locks. `audit_log` has no foreign keys on purpose: entries outlive the users
+and records they mention.
+
 Conventions:
 - **Event times** (`triggered_at`, `starts_at`, …) are `timestamp` in **UTC**, as PagerDuty reports them. The
   API returns them as UTC instants (`"2026-09-27T18:00:00Z"`), so clients never read them as local time.
@@ -105,7 +158,8 @@ Conventions:
 directly. Tables can be refactored freely as long as the views keep their columns; views may gain columns
 (appended, via `CREATE OR REPLACE VIEW`), but renaming or removing one is a breaking change and needs a
 coordinated release. View timestamps are UTC unless the column name ends in `_local` (the engineer's team
-timezone).
+timezone). The gateway's own analytics read `analytics_alert_v` (V6) the same way: one row per alert with its
+team-local time and the scorer's after-hours definition, so the page's counts and the scorer's figures agree.
 
 **HTTP contract: scorer `/v1/scores/*`.** Versioned in the path. Pydantic models on the scorer side and Java
 records in `scoring/dto` describe the same JSON; a breaking change means a new `/v2` path, not an edit to `/v1`.
@@ -120,7 +174,7 @@ Every call carries:
 doesn't depend on Spring Data. Each endpoint names the fields it can sort by (anything else is a
 `VALIDATION_FAILED` on `sort`) and loads a page with at most two queries (`@EntityGraph` on the list query;
 `PaginationTest` counts them). Filters are optional query parameters that combine with AND; date ranges are
-`start`/`end`, UTC days, both inclusive. Small, bounded lists (teams, an alert's paging history) are plain arrays.
+`start`/`end`, both inclusive, as days in `TEAM_TIMEZONE` (the audit log's are UTC days). Small, bounded lists (teams, an alert's paging history) are plain arrays.
 
 **HTTP contract: the gateway's errors.** Every error, from any layer, is an `ApiError`: RFC 9457 problem
 details served as `application/problem+json`.
@@ -145,6 +199,10 @@ details served as `application/problem+json`.
 | `VALIDATION_FAILED` | 400 | Bean validation, unparseable values, unknown references (e.g. a team name) |
 | `MALFORMED_REQUEST` | 400 | Missing body or broken JSON |
 | `BAD_REQUEST` | 400 (or other 4xx) | Any other client error |
+| `UNAUTHENTICATED` / `INVALID_CREDENTIALS` | 401 | No or expired access token; wrong email or password |
+| `REFRESH_TOKEN_INVALID` / `REFRESH_TOKEN_REUSED` | 401 | The refresh cookie is missing, expired or revoked; a rotated one came back (the sign-in is ended) |
+| `FORBIDDEN` / `PASSWORD_CHANGE_REQUIRED` / `ACCOUNT_DISABLED` | 403 | Outside the caller's role or scope; the password must be changed first; the account is off |
+| `ACCOUNT_LOCKED` / `TOO_MANY_REQUESTS` | 423 / 429 | Too many wrong passwords; too many sign-ins from one IP (both with `Retry-After`) |
 | `NOT_FOUND` | 404 | The resource in the URL, or the route, doesn't exist |
 | `METHOD_NOT_ALLOWED` / `NOT_ACCEPTABLE` / `UNSUPPORTED_MEDIA_TYPE` | 405 / 406 / 415 | Protocol errors |
 | `CONFLICT` | 409 | Duplicates (with the field) and operations the current state forbids |
@@ -180,6 +238,14 @@ never reach a controller.
 4. **Scoring.** The gateway forwards score requests to the scorer, which loads the window from the views
    (cached for 60 s), computes scores in pandas and returns typed JSON. Scoring rules are in
    `fairneess-scorer/docs/SCORING.md`.
+5. **Analytics.** `GET /api/v1/analytics/snapshot` answers the whole analytics page in one call: KPIs with the
+   previous period for comparison, alerts over time, the hour-by-weekday heatmap and the noisiest services come
+   from SQL over `analytics_alert_v`; Gini, burnout and the trend come from the scorer. No database connection is
+   held while the scorer is called, and when it can't answer, the SQL figures are still returned with a status
+   saying why the rest is missing.
+6. **Reports.** `GET /api/v1/reports/...?format=pdf|xlsx` builds the same snapshot and renders it while the
+   request waits: Excel with POI (streaming), PDF from a Thymeleaf template with JFreeChart charts through
+   openhtmltopdf. Each download is a `report_export` row and a `REPORT_EXPORTED` audit entry.
 
 ## Reliability
 
@@ -198,7 +264,7 @@ never reach a controller.
   git-ignored and excluded from Docker images.
 - Scorer: API key on all `/v1` routes; health and metrics are unauthenticated and must stay on the private
   network. Error responses never include database details.
-- Database: the scorer should log in as a read-only role limited to the two views
+- Database: the scorer should log in as a read-only role limited to the four `scoring_*_v` views
   (`ops/sql/create_scorer_readonly_role.sql`).
 - Webhooks: HMAC-SHA256 with constant-time comparison.
 - Gateway: every route needs an access token except `/`, `/error`, health/info/prometheus, the PagerDuty
@@ -221,9 +287,18 @@ never reach a controller.
   | Fairness and time-of-day scores | all teams | their teams | own team, only their own row |
   | Burnout list; one engineer's scores | all | their teams | no; only their own |
   | Change engineers, alerts; edit a team | yes | in their teams | no |
-  | Create/delete teams, delete alerts, PagerDuty operations | yes | no | no |
+  | Analytics page and its reports | all teams | their teams | their own alerts; their team's fairness with only their own row |
+  | One engineer's page and report | anyone | their teams' engineers | only their own |
+  | Report history (`/reports/exports`) | their own | their own | their own |
+  | Create/delete teams, delete alerts, PagerDuty operations, users, audit log | yes | no | no |
 
   Lists are filtered rather than refused; a single record outside the scope is a 403.
+- Web app: the browser only talks to its own origin (Nginx passes `/api` on), so the refresh cookie can be
+  `SameSite=Strict` and there's no CORS. Nginx sends a Content-Security-Policy that allows scripts from that
+  origin only (the production build has no inline script), `frame-ancestors 'none'`, HSTS when the request came
+  over HTTPS (`X-Forwarded-Proto` from the TLS proxy in front), `nosniff`, `Referrer-Policy` and
+  `Permissions-Policy`. Styles allow `'unsafe-inline'`, which Angular's component styles need. The access token
+  lives in memory only, never in storage.
 
 ## Observability
 
@@ -235,17 +310,26 @@ never reach a controller.
 
 ## Delivery
 
-- **CI:** each repo runs its own workflow on pull requests and pushes to `main`. Java: `mvn verify`, including
-  a Testcontainers test that applies every Flyway migration to a real PostgreSQL and validates the JPA mapping,
-  then an image build. Python: ruff, mypy, unit tests and integration tests against a PostgreSQL service
-  container, then an image build.
+- **CI:** the gateway and the scorer each run their own workflow on pull requests and pushes to `main`. Java:
+  `mvn verify`, including a Testcontainers test that applies every Flyway migration to a real PostgreSQL and
+  validates the JPA mapping, then an image build. Python: ruff, mypy, unit tests and integration tests against
+  a PostgreSQL service container, then an image build. The web app has no workflow yet (it has no GitHub
+  repository yet); locally it runs lint, Vitest unit tests, the production build and a Playwright end-to-end
+  test against the demo stack.
 - **CD:** switched off for now, so merges don't deploy anything. To bring back the Azure deploy, restore
   `.github/workflows/main_fairness-tracker.yml` from git history (commit `7a7316f^`); Flyway then runs pending
   migrations when the deployed app starts.
 - **Local (Docker):** each repo has its own `docker-compose.yml` and runs independently. They share the external
   Docker network `fairness-net` (`docker network create fairness-net`, once per machine), where the gateway
-  reaches the scorer at `http://scorer:8000`. Neither compose file runs a database: both connect to the
-  existing PostgreSQL from their `.env`. The scorer port is bound to `127.0.0.1` only.
+  reaches the scorer at `http://scorer:8000` and the web app's Nginx reaches the gateway at
+  `http://gateway:8080`. None of them runs a database: the gateway and the scorer connect to the existing
+  PostgreSQL from their `.env`. The scorer port is bound to `127.0.0.1` only; the web app is on `:4280`.
+- **Demo (Docker):** `docker-compose.yml` in the folder that holds the three repositories builds all three and
+  adds a throwaway PostgreSQL with made-up data (`demo/seed.sql`, loaded once by a one-off `seed` service after
+  the gateway has migrated the schema) on `http://localhost:8088`. It never touches Azure or PagerDuty; its
+  passwords and keys are demo values written in the file.
+- **Operations:** [RUNBOOK.md](RUNBOOK.md) covers starting, checking, migrating, rotating secrets and the usual
+  failures.
 
 ## Configuration
 
@@ -273,7 +357,10 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `API_DOCS_ENABLED` | gateway | no | `true` | Serve the OpenAPI spec (`/v3/api-docs`) and Swagger UI (`/swagger-ui.html`) |
 | `TEAM_TIMEZONE` | gateway | no | `Asia/Kolkata` | How analytics dates are read; set it to the scorer's value so both cover the same hours |
 | `TEAM_TIMEZONE` / `CACHE_TTL_SECONDS` | scorer | no | `Asia/Kolkata` / `60` | Timezone for `start`/`end` dates (night/weekend use each team's own timezone); result cache |
+| `REPORT_MAX_WINDOW_DAYS` / `REPORT_MAX_ALERT_ROWS` / `REPORT_MAX_SHIFT_ROWS` | gateway | no | `366` / `5000` / `2000` | Longest report window (at most 366, the on-call listing's limit); rows listed in the workbook |
 | `LOG_FORMAT` / `LOG_LEVEL` | scorer | no | `text` (`json` in Docker) / `INFO` | Logging |
+| `GATEWAY_URL` | web (Nginx) | no | `http://gateway:8080` | Where Nginx passes `/api`, `/v3/api-docs` and `/swagger-ui` |
+| `E2E_BASE_URL` / `E2E_EMAIL` / `E2E_PASSWORD` | web (Playwright) | no | the demo stack and its manager | What the end-to-end test signs in to |
 
 ## Known limitations
 
@@ -283,3 +370,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 - `webhook_event` and `sync_run` keep every row; nothing prunes them yet.
 - The scorer loads the full window into memory; fine up to ~10⁵ alerts per window. Beyond that, move
   aggregation into SQL.
+- Reports are built while the request waits (Nginx allows 120 s) and held in memory; the row limits keep them
+  small. A queue would be the next step if reports grew.
+- PDF text is set in DejaVu Sans: scripts that need shaping (Devanagari, for one) don't print.
+- An access token can't be revoked before it expires (15 minutes); refresh is refused at once.

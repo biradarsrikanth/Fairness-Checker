@@ -3,7 +3,12 @@
 Spring Boot gateway for the on-call fairness tracker: ingests PagerDuty incidents and on-call shifts, stores
 them in PostgreSQL, and serves scores computed by the
 [fairneess-scorer](https://github.com/biradarsrikanth/fairneess-scorer) service.
-Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Operations: [docs/RUNBOOK.md](docs/RUNBOOK.md). The web app is
+the `fairness-web` repository.
+
+**Just want to see it?** `docker compose up --build` in the folder that holds the three repositories starts the
+whole app with a throwaway database and made-up data at <http://localhost:8088> (sign-ins are in that
+`docker-compose.yml`). It doesn't touch Azure or PagerDuty.
 
 ## Run with Docker
 
@@ -19,6 +24,7 @@ docker compose up --build
   and only then migrates the real one.
 - Start the scorer from its own repo on the same network and scores work at
   `http://localhost:8080/api/v1/scores/fairness`; without it, score endpoints return 503 and the rest works.
+- The web app's compose file joins the same network and reaches this service as `http://gateway:8080`.
 
 ## Run without Docker
 
