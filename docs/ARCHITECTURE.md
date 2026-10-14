@@ -41,7 +41,6 @@ entities by the services, which own the rules). Controllers only call services:
 | `pagerduty` | PagerDuty client calls, incident and on-call sync, scheduler, sync activity for admins; `sync/` runs syncs under a lock and records them; `webhook/` receives signed webhooks and stores each event once |
 | `scoring` | `ScoringClient` and the `/api/v1/scores` proxy to the scorer |
 | `common` | `config/` (HTTP clients, OpenAPI), `exception/` (`ApiError`, global handler), `web/` (request id filter) |
-| `dev` | Helpers loaded only with the `dev` profile |
 
 All routes are under `/api/v1`, except `/api/webhook/pagerduty`, whose URL is configured in PagerDuty.
 The OpenAPI spec is served at `/v3/api-docs` and Swagger UI at `/swagger-ui.html`.
@@ -219,7 +218,10 @@ never reach a controller.
 
 1. **Ingestion.** PagerDuty pushes webhooks (verified with HMAC-SHA256). Each signed event is stored in
    `webhook_event` under PagerDuty's event id before it's applied, so a redelivery is a no-op (an old
-   `incident.acknowledged` delivered again can't reopen a resolved incident). An event that fails is kept as
+   `incident.acknowledged` delivered again can't reopen a resolved incident). Events applied out of order
+   can't move an incident back either: one older than the incident's last change only fills in what's missing,
+   and only `incident.reopened` clears a resolution. PagerDuty is never called inside a database transaction.
+   An event that fails is kept as
    FAILED and answered with an error; PagerDuty's retry applies it again, and admins can replay it. A
    scheduled sync pulls incidents created in the last `PAGERDUTY_SYNC_LOOKBACK_DAYS` days as a safety net
    for missed webhooks, upserting by PagerDuty incident id (unique index).
@@ -266,17 +268,21 @@ never reach a controller.
   network. Error responses never include database details.
 - Database: the scorer should log in as a read-only role limited to the four `scoring_*_v` views
   (`ops/sql/create_scorer_readonly_role.sql`).
-- Webhooks: HMAC-SHA256 with constant-time comparison.
+- Webhooks: HMAC-SHA256 with constant-time comparison; while a secret is rotated PagerDuty sends one
+  signature per secret, and any match is accepted.
 - Gateway: every route needs an access token except `/`, `/error`, health/info/prometheus, the PagerDuty
   webhook, `POST /api/v1/auth/{login,refresh,logout}` and the API docs. Security errors are `ApiError`s
   like any other (401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, ...).
 - Tokens: the gateway issues its own. Access token: HS256 JWT (`sub` = user id, `email`, `role`), 15 minutes,
   kept in memory by the client. Refresh token: opaque, single-use, rotated on every refresh, stored as a
   SHA-256 hash, sent as an httpOnly `SameSite=Strict` cookie limited to `/api/v1/auth`; reusing a rotated
-  one ends that sign-in everywhere. No sessions, so no CSRF tokens. An access token can't be revoked: a
-  disabled user or changed password takes effect when it expires (refresh is refused at once).
+  one ends that sign-in everywhere. No sessions, so no CSRF tokens. Each request checks that the account still
+  exists and is enabled (the same lookup as the caller's scope), so disabling or deleting a user takes effect
+  at once (401 `UNAUTHENTICATED`). A changed password refuses other sign-ins' refresh at once; their access
+  tokens run out within 15 minutes.
 - Sign-in: BCrypt (cost 12); 5 wrong passwords lock the account for 15 minutes; 10 attempts per minute per
-  client IP (in memory, per instance). There's no sign-up; the first admin comes from `ADMIN_BOOTSTRAP_*`
+  client IP (in memory, per instance). The client IP comes from Nginx, which ignores a client's own
+  `X-Forwarded-For` and believes one only from `TRUSTED_PROXY`. There's no sign-up; the first admin comes from `ADMIN_BOOTSTRAP_*`
   and must change the password before anything else.
 - Access (`AccessPolicy`): roles are checked with `@PreAuthorize`, data with the user's scope, read from the
   database on each request so changes apply at once:
@@ -362,8 +368,10 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `TEAM_TIMEZONE` | gateway | no | `Asia/Kolkata` | How analytics dates are read; set it to the scorer's value so both cover the same hours |
 | `TEAM_TIMEZONE` / `CACHE_TTL_SECONDS` | scorer | no | `Asia/Kolkata` / `60` | Timezone for `start`/`end` dates (night/weekend use each team's own timezone); result cache |
 | `REPORT_MAX_WINDOW_DAYS` / `REPORT_MAX_ALERT_ROWS` / `REPORT_MAX_SHIFT_ROWS` | gateway | no | `366` / `5000` / `2000` | Longest report window (at most 366, the on-call listing's limit); rows listed in the workbook |
+| `REPORT_MAX_CONCURRENT` | gateway | no | `2` | Reports built at once per instance; more get 429 with `Retry-After` |
 | `LOG_FORMAT` / `LOG_LEVEL` | scorer | no | `text` (`json` in Docker) / `INFO` | Logging |
 | `GATEWAY_URL` | web (Nginx) | no | `http://gateway:8080` | Where Nginx passes `/api`, `/v3/api-docs` and `/swagger-ui` |
+| `TRUSTED_PROXY` | web (Nginx) | no | `127.0.0.1/32` (none) | Address or CIDR of the load balancer in front, whose `X-Forwarded-For` names the client |
 | `E2E_BASE_URL` / `E2E_EMAIL` / `E2E_PASSWORD` | web (Playwright) | no | the demo stack and its manager | What the end-to-end test signs in to |
 
 ## Known limitations
@@ -375,6 +383,5 @@ New settings introduced with this architecture (existing database and PagerDuty 
 - The scorer loads the full window into memory; fine up to ~10⁵ alerts per window. Beyond that, move
   aggregation into SQL.
 - Reports are built while the request waits (Nginx allows 120 s) and held in memory; the row limits keep them
-  small. A queue would be the next step if reports grew.
+  small, and at most `REPORT_MAX_CONCURRENT` are built at once. A queue would be the next step if reports grew.
 - PDF text is set in DejaVu Sans: scripts that need shaping (Devanagari, for one) don't print.
-- An access token can't be revoked before it expires (15 minutes); refresh is refused at once.

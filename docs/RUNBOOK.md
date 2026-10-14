@@ -76,8 +76,8 @@ pg_restore --no-owner --no-acl -d <database> ~/fairness-backups/<file>.dump
 | No users yet | Set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` (12+ characters) and start the gateway; that admin must change the password at first sign-in. Remove the password from the environment afterwards |
 | Locked out after 5 wrong passwords | Wait 15 minutes, or an admin presses **Unlock** on `/admin/users` |
 | Forgotten password | An admin presses **Reset password**: it shows a one-time password once, and the user must change it at sign-in. Their other sessions end |
-| Someone leaves | An admin disables or deletes their login on `/admin/users`. Refresh is refused at once; an access token they already hold works until it expires (at most 15 minutes) |
-| "Too many sign-in attempts" | 10 per minute per client IP. Behind a proxy, check `FORWARD_HEADERS_STRATEGY` so the client IP isn't the proxy's |
+| Someone leaves | An admin disables or deletes their login on `/admin/users`; it stops working at once, tokens they hold included |
+| "Too many sign-in attempts" | 10 per minute per client IP. Behind a load balancer, set the web container's `TRUSTED_PROXY` to its address range, or everyone shares the balancer's IP |
 
 The audit log (`/admin/audit`) records sign-ins, lockouts, user changes, syncs, webhook replays and report
 downloads.
@@ -113,8 +113,9 @@ cause is fixed, **Replay** on `/admin/sync` re-applies it. Events that were neve
 next scheduled sync (incidents from the last `PAGERDUTY_SYNC_LOOKBACK_DAYS` days).
 
 **A report fails:** the user's `/reports` page shows it as failed with the reason, from its `report_export`
-row. Windows longer than `REPORT_MAX_WINDOW_DAYS` are refused up front. Behind another proxy, allow at least
-two minutes for the response, as Nginx does.
+row. Windows longer than `REPORT_MAX_WINDOW_DAYS` are refused up front. When `REPORT_MAX_CONCURRENT` reports are
+already being built, the next is refused with "try again in a moment" (429, `Retry-After: 5`) and gets no row. Behind another proxy, allow
+at least two minutes for the response, as Nginx does.
 
 **Signed out on every reload over plain HTTP:** the refresh cookie is `Secure`, and browsers drop it on plain
 HTTP except on `localhost`. Serve over HTTPS, or for a demo on another host set `REFRESH_COOKIE_SECURE=false`.
