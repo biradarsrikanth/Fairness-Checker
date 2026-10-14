@@ -21,6 +21,7 @@ import com.example.fairnesstracker.pagerduty.dto.incident.PagerDutyResponse;
 import com.example.fairnesstracker.pagerduty.dto.incident.ServiceInfo;
 import com.example.fairnesstracker.pagerduty.dto.user.PagerDutyUsersResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +55,13 @@ import java.util.regex.Pattern;
  *
  * <p>The incident log is read when an incident is new or its status changed; it replaces the alert's
  * paging history and supplies the acknowledgement time. Webhook rows are provisional until then.
+ *
+ * <p>PagerDuty is never called inside a database transaction: a slow answer would otherwise hold a pooled
+ * connection for up to the response timeout. Calls happen first, then a short transaction stores the result.
+ *
+ * <p>Webhooks can arrive out of order. An event older than the alert's resolution doesn't change its status
+ * (a late "acknowledged" can't undo "resolved"); only "reopened" brings a resolved alert back, clearing the
+ * resolution time.
  */
 @Slf4j
 @Service
@@ -126,7 +134,7 @@ public class PagerDutyService {
             for (PagerDutyIncident incident : page.getIncidents()) {
                 try {
                     // One transaction per incident: a bad incident doesn't roll back the others
-                    Upsert result = transactions.execute(status -> upsert(incident));
+                    Upsert result = store(incident);
                     if (result == null) continue;
                     if (result.created()) created++; else updated++;
                     if (!result.attributed()) unattributed++;
@@ -165,15 +173,25 @@ public class PagerDutyService {
                 .bodyToMono(IncidentResponse.class)
                 .block();
         if (response != null && response.getIncident() != null) {
-            transactions.executeWithoutResult(status -> upsert(response.getIncident()));
+            store(response.getIncident());
         }
     }
 
-    Upsert upsert(PagerDutyIncident incident) {
+    /** Reads the incident's log if it's needed (outside any transaction), then stores the incident in one. */
+    private Upsert store(PagerDutyIncident incident) {
+        // The log costs one API call, so only read it when something happened
+        boolean statusChanged = alertRepository.findByPagerDutyIncidentId(incident.getId())
+                .map(alert -> !Objects.equals(alert.getStatus(), incident.getStatus()))
+                .orElse(true);
+        List<LogEntry> incidentLog = statusChanged ? fetchLog(incident.getId()) : null;
+        return transactions.execute(status -> upsert(incident, incidentLog));
+    }
+
+    /** {@code incidentLog} is null when it wasn't read (nothing changed) or couldn't be. */
+    Upsert upsert(PagerDutyIncident incident, @Nullable List<LogEntry> incidentLog) {
         Optional<AlertEvent> existing = alertRepository.findByPagerDutyIncidentId(incident.getId());
         AlertEvent alert = existing.orElseGet(AlertEvent::new);
         boolean isNew = existing.isEmpty();
-        boolean statusChanged = isNew || !Objects.equals(alert.getStatus(), incident.getStatus());
 
         if (isNew) {
             alert.setPagerDutyIncidentId(incident.getId());
@@ -187,12 +205,12 @@ public class PagerDutyService {
         alert.setSeverity(severity(incident.getPriority() != null ? incident.getPriority().getSummary() : null,
                 incident.getUrgency()));
         alert.setService(resolveService(incident.getService()));
-        if (incident.getResolvedAt() != null) {
+        if (!AlertEvent.STATUS_RESOLVED.equals(incident.getStatus())) {
+            // Reopened since it was stored: it isn't resolved any more
+            alert.setResolvedAt(null);
+        } else if (incident.getResolvedAt() != null) {
             alert.setResolvedAt(notBefore(toUtc(incident.getResolvedAt()), alert.getTriggeredAt()));
         }
-
-        // The log costs one API call, so only read it when something happened
-        List<LogEntry> incidentLog = statusChanged ? fetchLog(incident.getId()) : null;
 
         if (alert.getEngineer() == null) {
             if (isNew) {
@@ -216,7 +234,6 @@ public class PagerDutyService {
     }
 
     /** Applies a PagerDuty V3 webhook event. Returns a short description for the response body. */
-    @org.springframework.transaction.annotation.Transactional
     public String applyWebhookEvent(JsonNode event) {
         String type = event.path("event_type").asString("");
         JsonNode data = event.path("data");
@@ -226,45 +243,60 @@ public class PagerDutyService {
         }
         LocalDateTime occurredAt = toUtcOrNow(text(event, "occurred_at"));
 
-        Optional<AlertEvent> existing = alertRepository.findByPagerDutyIncidentId(incidentId);
-        if (existing.isEmpty()) {
-            if ("incident.triggered".equals(type)) {
-                createFromWebhook(incidentId, data, occurredAt);
-                return "Created";
-            }
-            // We missed the trigger; read the whole incident instead of guessing
+        if (!"incident.triggered".equals(type) && alertRepository.findByPagerDutyIncidentId(incidentId).isEmpty()) {
+            // We missed the trigger; read the whole incident instead of guessing (outside a transaction)
             refreshIncident(incidentId);
             return "Fetched";
         }
+        return transactions.execute(status -> {
+            Optional<AlertEvent> existing = alertRepository.findByPagerDutyIncidentId(incidentId);
+            if (existing.isEmpty()) {
+                createFromWebhook(incidentId, data, occurredAt);
+                return "Created";
+            }
+            applyToAlert(existing.get(), type, data, occurredAt);
+            return "Updated";
+        });
+    }
 
-        AlertEvent alert = existing.get();
+    private void applyToAlert(AlertEvent alert, String type, JsonNode data, LocalDateTime occurredAt) {
+        // Older than the alert's resolution: delivered late, so it mustn't change the status any more
+        boolean late = alert.getResolvedAt() != null && occurredAt.isBefore(alert.getResolvedAt());
         switch (type) {
             case "incident.acknowledged" -> {
-                alert.setStatus(AlertEvent.STATUS_ACKNOWLEDGED);
+                if (!late) alert.setStatus(AlertEvent.STATUS_ACKNOWLEDGED);
                 if (alert.getAcknowledgedAt() == null) {
                     alert.setAcknowledgedAt(notBefore(occurredAt, alert.getTriggeredAt()));
                 }
             }
             case "incident.resolved" -> {
-                alert.setStatus(AlertEvent.STATUS_RESOLVED);
-                alert.setResolvedAt(notBefore(occurredAt, alert.getTriggeredAt()));
+                if (!late) {
+                    alert.setStatus(AlertEvent.STATUS_RESOLVED);
+                    alert.setResolvedAt(notBefore(occurredAt, alert.getTriggeredAt()));
+                }
+            }
+            case "incident.reopened" -> {
+                alert.setStatus(statusOr(data, AlertEvent.STATUS_TRIGGERED));
+                alert.setResolvedAt(null);
             }
             case "incident.escalated", "incident.reassigned" -> {
                 Kind kind = type.endsWith("escalated") ? Kind.ESCALATED : Kind.REASSIGNED;
                 for (JsonNode assignee : data.path("assignees")) {
                     recordWebhookAssignment(alert, text(assignee, "id"), kind, occurredAt);
                 }
-                String status = text(data, "status");
-                if (status != null) alert.setStatus(status);
+                if (!late) alert.setStatus(statusOr(data, alert.getStatus()));
             }
             default -> {
-                String status = text(data, "status");
-                if (status != null) alert.setStatus(status);
+                if (!late) alert.setStatus(statusOr(data, alert.getStatus()));
             }
         }
         if (alert.getEngineer() == null) linkEngineer(alert);
         alertRepository.save(alert);
-        return "Updated";
+    }
+
+    private static String statusOr(JsonNode data, String fallback) {
+        String status = text(data, "status");
+        return status != null ? status : fallback;
     }
 
     private void createFromWebhook(String incidentId, JsonNode data, LocalDateTime occurredAt) {

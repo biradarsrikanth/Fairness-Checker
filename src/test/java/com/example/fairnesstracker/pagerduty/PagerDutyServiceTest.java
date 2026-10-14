@@ -238,12 +238,69 @@ class PagerDutyServiceTest {
     }
 
     @Test
+    void aLateWebhookDoesNotUndoAResolution() throws Exception {
+        AlertEvent existing = resolvedAlert("Q6");
+
+        // Acknowledged before it was resolved, but delivered after
+        service.applyWebhookEvent(new ObjectMapper().readTree("""
+                {"event_type": "incident.acknowledged", "occurred_at": "2026-09-27T18:05:00Z",
+                 "data": {"id": "Q6", "status": "acknowledged"}}
+                """));
+
+        assertThat(existing.getStatus()).isEqualTo(AlertEvent.STATUS_RESOLVED);
+        assertThat(existing.getResolvedAt()).isEqualTo(LocalDateTime.of(2026, 9, 27, 18, 20));
+        // The acknowledgement time is still worth keeping
+        assertThat(existing.getAcknowledgedAt()).isEqualTo(LocalDateTime.of(2026, 9, 27, 18, 5));
+    }
+
+    @Test
+    void aReopenedIncidentIsNoLongerResolved() throws Exception {
+        AlertEvent existing = resolvedAlert("Q7");
+
+        service.applyWebhookEvent(new ObjectMapper().readTree("""
+                {"event_type": "incident.reopened", "occurred_at": "2026-09-27T19:00:00Z",
+                 "data": {"id": "Q7", "status": "triggered"}}
+                """));
+
+        assertThat(existing.getStatus()).isEqualTo(AlertEvent.STATUS_TRIGGERED);
+        assertThat(existing.getResolvedAt()).isNull();
+    }
+
+    @Test
+    void syncClearsTheResolutionOfAReopenedIncident() {
+        AlertEvent existing = resolvedAlert("Q8");
+        String reopened = incident("Q8", assignedTo("PASHA", "Asha"), "PASHA")
+                .replace("\"status\": \"resolved\"", "\"status\": \"triggered\"")
+                .replace("\"resolved_at\": \"2026-09-27T19:00:00Z\", ", "");
+        responses.put("/incidents?", page(reopened));
+        responses.put("/incidents/Q8/log_entries", NO_LOG);
+
+        service.syncIncidents();
+
+        assertThat(existing.getStatus()).isEqualTo(AlertEvent.STATUS_TRIGGERED);
+        assertThat(existing.getResolvedAt()).isNull();
+    }
+
+    @Test
     void webhookForNonIncidentEventsIsIgnored() throws Exception {
         String outcome = service.applyWebhookEvent(new ObjectMapper().readTree(
                 "{\"event_type\": \"service.updated\", \"data\": {\"id\": \"S1\"}}"));
 
         assertThat(outcome).isEqualTo("Ignored");
         verify(alerts, never()).save(any());
+    }
+
+    // Triggered 18:00, resolved 18:20 on 27 September
+    private AlertEvent resolvedAlert(String incidentId) {
+        AlertEvent existing = new AlertEvent();
+        withId(existing, 8L);
+        existing.setPagerDutyIncidentId(incidentId);
+        existing.setEngineer(asha);
+        existing.setTriggeredAt(LocalDateTime.of(2026, 9, 27, 18, 0));
+        existing.setStatus(AlertEvent.STATUS_RESOLVED);
+        existing.setResolvedAt(LocalDateTime.of(2026, 9, 27, 18, 20));
+        when(alerts.findByPagerDutyIncidentId(incidentId)).thenReturn(Optional.of(existing));
+        return existing;
     }
 
     private AlertEvent savedAlert() {
