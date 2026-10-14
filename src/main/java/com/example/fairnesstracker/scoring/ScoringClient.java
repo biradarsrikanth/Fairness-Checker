@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.util.UriBuilder;
+import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -79,12 +80,32 @@ public class ScoringClient {
 
     /** Fairness and burnout per calendar week or month ({@code granularity}: "week" or "month"). */
     public Scores.TrendReport trend(ScoreQuery query, String granularity) {
-        return get("/v1/scores/trend", builder -> query.applyTo(builder).queryParam("granularity", granularity),
+        return trendAsync(query, granularity).block();
+    }
+
+    // Not yet started: subscribing sends the request. Combine several with Mono.zip and block once, so the
+    // calls run side by side instead of one after another (the analytics page needs five).
+
+    public Mono<Scores.FairnessReport> fairnessAsync(ScoreQuery query) {
+        return request("/v1/scores/fairness", query::applyTo, Scores.FairnessReport.class);
+    }
+
+    public Mono<Scores.BurnoutReport> burnoutAsync(ScoreQuery query) {
+        return request("/v1/scores/burnout", query::applyTo, Scores.BurnoutReport.class);
+    }
+
+    public Mono<Scores.TrendReport> trendAsync(ScoreQuery query, String granularity) {
+        return request("/v1/scores/trend", builder -> query.applyTo(builder).queryParam("granularity", granularity),
                 Scores.TrendReport.class);
     }
 
     private <T> T get(String path, UnaryOperator<UriBuilder> parameters, Class<T> type, Object... uriVariables) {
-        // Read on the calling (servlet) thread; the MDC isn't available on Netty threads
+        return request(path, parameters, type, uriVariables).block();
+    }
+
+    private <T> Mono<T> request(String path, UnaryOperator<UriBuilder> parameters, Class<T> type,
+                                Object... uriVariables) {
+        // Read now, on the calling (servlet) thread; the MDC isn't available on Netty threads
         String requestId = MDC.get(RequestIdFilter.MDC_KEY);
 
         return webClient.get()
@@ -103,8 +124,7 @@ public class ScoringClient {
                                 path, signal.totalRetries() + 1, signal.failure().toString()))
                         .onRetryExhaustedThrow((spec, signal) -> signal.failure()))
                 .onErrorMap(WebClientRequestException.class, ScoringClient::fromRequestFailure)
-                .onErrorMap(DecodingException.class, ex -> fromInvalidResponse(path, ex))
-                .block();
+                .onErrorMap(DecodingException.class, ex -> fromInvalidResponse(path, ex));
     }
 
     private ScoringServiceException fromUpstreamStatus(int upstream, String body) {

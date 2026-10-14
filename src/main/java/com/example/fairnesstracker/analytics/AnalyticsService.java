@@ -27,6 +27,8 @@ import com.example.fairnesstracker.team.Team;
 import com.example.fairnesstracker.team.TeamRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -40,6 +42,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Builds the analytics page. Counts and averages come from SQL (always available); Gini, burnout and trends
@@ -79,7 +83,7 @@ public class AnalyticsService {
 
     public Summary summary(AnalyticsFilter filter) {
         Request request = resolve(filter);
-        return summary(request, scores(request));
+        return summary(request, scoresAsync(request).block());
     }
 
     public TimeSeries alertsOverTime(AnalyticsFilter filter) {
@@ -98,14 +102,35 @@ public class AnalyticsService {
         return trend(resolve(filter));
     }
 
-    /** Everything at once, with one call per scorer figure: what the page and the reports use. */
+    /**
+     * Everything at once, with one call per scorer figure: what the page and the reports use. The five scorer
+     * calls go out together and the database queries run while they're on their way, so the snapshot takes
+     * about as long as the slowest call instead of all of them added up.
+     */
     public Snapshot snapshot(AnalyticsFilter filter) {
         Request request = resolve(filter);
-        ScorerFigures scores = scores(request);
-        return new Snapshot(summary(request, scores), alertsOverTime(request), heatmap(request),
-                topServices(request), trend(request),
+        CompletableFuture<Tuple2<ScorerFigures, Trend>> scorer =
+                Mono.zip(scoresAsync(request), trendAsync(request)).toFuture();
+        TimeSeries alertsOverTime = alertsOverTime(request);
+        Heatmap heatmap = heatmap(request);
+        TopServices topServices = topServices(request);
+        Tuple2<ScorerFigures, Trend> figures = join(scorer);
+        ScorerFigures scores = figures.getT1();
+        return new Snapshot(summary(request, scores), alertsOverTime, heatmap, topServices, figures.getT2(),
                 scores.current() != null ? scores.current().engineers() : List.of(),
                 scores.burnout() != null ? scores.burnout().engineers() : List.of());
+    }
+
+    // A scorer failure is already turned into "unavailable"; anything else is a bug and surfaces as it is
+    private static <T> T join(CompletableFuture<T> future) {
+        try {
+            return future.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw e;
+        }
     }
 
     // --- The parts -----------------------------------------------------------------------------------
@@ -175,19 +200,24 @@ public class AnalyticsService {
     }
 
     private Trend trend(Request request) {
+        return trendAsync(request).block();
+    }
+
+    private Mono<Trend> trendAsync(Request request) {
         String granularity = "month".equals(request.granularity()) || request.days() > MAX_WEEKLY_TREND_DAYS
                 ? "month" : "week";
         if (request.scorerBlocked() != null) {
-            return new Trend(request.window(), request.teamName(), granularity, List.of(), request.scorerBlocked());
+            return Mono.just(new Trend(request.window(), request.teamName(), granularity, List.of(),
+                    request.scorerBlocked()));
         }
-        try {
-            Scores.TrendReport report = scoring.trend(request.scoreQuery(), granularity);
-            return new Trend(request.window(), request.teamName(), granularity, report.periods(),
-                    ScoresStatus.AVAILABLE);
-        } catch (ScoringServiceException e) {
-            log.warn("Trend unavailable: {}", e.getMessage());
-            return new Trend(request.window(), request.teamName(), granularity, List.of(), unavailable());
-        }
+        return scoring.trendAsync(request.scoreQuery(), granularity)
+                .map(report -> new Trend(request.window(), request.teamName(), granularity, report.periods(),
+                        ScoresStatus.AVAILABLE))
+                .onErrorResume(ScoringServiceException.class, e -> {
+                    log.warn("Trend unavailable: {}", e.getMessage());
+                    return Mono.just(new Trend(request.window(), request.teamName(), granularity, List.of(),
+                            unavailable()));
+                });
     }
 
     // --- Scorer figures ------------------------------------------------------------------------------
@@ -197,27 +227,33 @@ public class AnalyticsService {
                                  ScoresStatus status) {
     }
 
-    private ScorerFigures scores(Request request) {
+    /** The four scorer figures, requested together; one failing makes them all unavailable, as before. */
+    private Mono<ScorerFigures> scoresAsync(Request request) {
         if (request.scorerBlocked() != null) {
-            return new ScorerFigures(null, null, null, null, request.scorerBlocked());
+            return Mono.just(new ScorerFigures(null, null, null, null, request.scorerBlocked()));
         }
-        try {
-            Scores.FairnessReport current = scoring.fairness(request.scoreQuery());
-            Scores.FairnessReport previous = scoring.fairness(request.previousScoreQuery());
-            Scores.BurnoutReport burnout = scoring.burnout(request.scoreQuery());
-            Scores.BurnoutReport burnoutBefore = scoring.burnout(request.previousScoreQuery());
-            Long own = access.ownEngineerOnly();
-            if (own != null) {
-                // An engineer sees their team's figures but only their own row
-                current = current.onlyEngineer(own);
-                burnout = new Scores.BurnoutReport(burnout.window(), burnout.team(),
-                        burnout.engineers().stream().filter(b -> b.engineerId() == own).toList());
-            }
-            return new ScorerFigures(current, previous, burnout, burnoutBefore, ScoresStatus.AVAILABLE);
-        } catch (ScoringServiceException e) {
-            log.warn("Scores unavailable for analytics: {}", e.getMessage());
-            return new ScorerFigures(null, null, null, null, unavailable());
-        }
+        // Read here, on the request's thread: the security context isn't visible on the client's threads
+        Long own = access.ownEngineerOnly();
+        return Mono.zip(scoring.fairnessAsync(request.scoreQuery()),
+                        scoring.fairnessAsync(request.previousScoreQuery()),
+                        scoring.burnoutAsync(request.scoreQuery()),
+                        scoring.burnoutAsync(request.previousScoreQuery()))
+                .map(figures -> {
+                    Scores.FairnessReport current = figures.getT1();
+                    Scores.BurnoutReport burnout = figures.getT3();
+                    if (own != null) {
+                        // An engineer sees their team's figures but only their own row
+                        current = current.onlyEngineer(own);
+                        burnout = new Scores.BurnoutReport(burnout.window(), burnout.team(),
+                                burnout.engineers().stream().filter(b -> b.engineerId() == own).toList());
+                    }
+                    return new ScorerFigures(current, figures.getT2(), burnout, figures.getT4(),
+                            ScoresStatus.AVAILABLE);
+                })
+                .onErrorResume(ScoringServiceException.class, e -> {
+                    log.warn("Scores unavailable for analytics: {}", e.getMessage());
+                    return Mono.just(new ScorerFigures(null, null, null, null, unavailable()));
+                });
     }
 
     private static int highRisk(Scores.BurnoutReport report) {
