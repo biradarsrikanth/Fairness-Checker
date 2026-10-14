@@ -157,7 +157,10 @@ public class AccessPolicy {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof JwtAuthenticationToken jwt) {
             AppUser user = users.findWithAccessById(Long.parseLong(jwt.getName()))
-                    .orElseThrow(() -> new ForbiddenException("This account no longer exists"));
+                    .orElseThrow(() -> new InactiveAccountException("This account no longer exists; sign in again"));
+            if (!user.isEnabled()) {
+                throw new InactiveAccountException("This account has been disabled");
+            }
             // The role in the database wins over the token's: a demotion applies at once
             return switch (user.getRole()) {
                 case ADMIN -> DataScope.ALL;

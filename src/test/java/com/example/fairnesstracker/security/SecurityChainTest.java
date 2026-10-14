@@ -1,6 +1,7 @@
 package com.example.fairnesstracker.security;
 
 import com.example.fairnesstracker.user.AppUser;
+import com.example.fairnesstracker.user.AppUserRepository;
 import com.example.fairnesstracker.user.Role;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,12 +15,12 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,6 +38,7 @@ class SecurityChainTest {
     @Autowired private MockMvc mvc;
     @Autowired private JwtService jwtService;
     @Autowired private JwtEncoder jwtEncoder;
+    @Autowired private AppUserRepository users;
 
     @Test
     void protectedRoutesNeedAToken() throws Exception {
@@ -80,6 +82,31 @@ class SecurityChainTest {
     }
 
     @Test
+    void aTokenStopsWorkingWhenItsAccountIsDisabled() throws Exception {
+        AppUser user = user(Role.ADMIN, false);
+        String token = bearer(user);
+        user.setEnabled(false);
+        users.save(user);
+
+        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.detail").value("This account has been disabled"));
+    }
+
+    @Test
+    void aTokenStopsWorkingWhenItsAccountIsDeleted() throws Exception {
+        AppUser user = user(Role.MANAGER, false);
+        String token = bearer(user);
+        users.delete(user);
+
+        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
     void publicRoutesNeedNoToken() throws Exception {
         mvc.perform(get("/")).andExpect(status().isOk());
         mvc.perform(get("/actuator/health/liveness")).andExpect(status().isOk());
@@ -102,10 +129,11 @@ class SecurityChainTest {
         return "Bearer " + jwtService.issue(user).value();
     }
 
-    private static AppUser user(Role role, boolean mustChangePassword) {
-        AppUser user = new AppUser("someone@example.com", "Someone", role);
-        ReflectionTestUtils.setField(user, "id", 7L);
+    // Saved, as tokens of accounts that don't exist (any more) are turned away
+    private AppUser user(Role role, boolean mustChangePassword) {
+        AppUser user = new AppUser("someone-" + UUID.randomUUID() + "@example.com", "Someone", role);
+        user.setPassword("{noop}unused", Instant.now());
         user.setMustChangePassword(mustChangePassword);
-        return user;
+        return users.save(user);
     }
 }

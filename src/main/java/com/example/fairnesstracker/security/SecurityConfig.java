@@ -28,7 +28,8 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain apiSecurity(HttpSecurity http, SecurityErrorResponses errors) throws Exception {
+    public SecurityFilterChain apiSecurity(HttpSecurity http, SecurityErrorResponses errors, AccessPolicy access)
+            throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -57,7 +58,10 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(errors)
                         .accessDeniedHandler(errors))
-                .addFilterAfter(new PasswordChangeRequiredFilter(errors), BearerTokenAuthenticationFilter.class);
+                // Both run once the token is verified: first the account must still be active, then a password
+                // that must be changed limits what it may do
+                .addFilterAfter(new PasswordChangeRequiredFilter(errors), BearerTokenAuthenticationFilter.class)
+                .addFilterBefore(new ActiveAccountFilter(access, errors), PasswordChangeRequiredFilter.class);
         return http.build();
     }
 
