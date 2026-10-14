@@ -88,7 +88,8 @@ class SecurityChainTest {
         user.setEnabled(false);
         users.save(user);
 
-        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, token))
+        // /auth/me reads the account itself but not the caller's scope: the chain must turn it away first
+        mvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
@@ -101,9 +102,21 @@ class SecurityChainTest {
         String token = bearer(user);
         users.delete(user);
 
-        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, token))
+        mvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    void aDisabledAccountIsTurnedAwayBeforeAskingForANewPassword() throws Exception {
+        AppUser user = user(Role.ADMIN, true);
+        String token = bearer(user);
+        user.setEnabled(false);
+        users.save(user);
+
+        mvc.perform(get("/api/v1/teams").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("This account has been disabled"));
     }
 
     @Test

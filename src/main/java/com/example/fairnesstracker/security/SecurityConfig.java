@@ -59,9 +59,10 @@ public class SecurityConfig {
                         .authenticationEntryPoint(errors)
                         .accessDeniedHandler(errors))
                 // Both run once the token is verified: first the account must still be active, then a password
-                // that must be changed limits what it may do
-                .addFilterAfter(new PasswordChangeRequiredFilter(errors), BearerTokenAuthenticationFilter.class)
-                .addFilterBefore(new ActiveAccountFilter(access, errors), PasswordChangeRequiredFilter.class);
+                // that must be changed limits what it may do. Each is placed after the one before it: placed
+                // "before" the second, the first would share the token filter's position and could run ahead of it
+                .addFilterAfter(new ActiveAccountFilter(access, errors), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new PasswordChangeRequiredFilter(errors), ActiveAccountFilter.class);
         return http.build();
     }
 
