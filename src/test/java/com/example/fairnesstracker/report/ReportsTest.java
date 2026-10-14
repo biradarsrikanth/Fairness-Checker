@@ -156,6 +156,7 @@ class ReportsTest {
             assertThat(alerts.getRow(1).getCell(3).getStringCellValue()).isEqualTo("Search errors");
             Sheet shifts = workbook.getSheet("On-call");
             assertThat(shifts.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Asha");
+            assertThat(shifts.getRow(1).getCell(1).getStringCellValue()).isEqualTo("SRE");
             assertThat(shifts.getRow(2)).isNull();
             assertThat(workbook.getSheet("Time of day").getRow(2).getCell(0).getStringCellValue()).isEqualTo("Asha");
         }

@@ -69,8 +69,8 @@ class ReportRenderersTest {
             assertThat(alertSheet.getRow(32).getCell(0).getStringCellValue()).isEqualTo("The latest 30 of 31 alerts.");
 
             Sheet shifts = workbook.getSheet("On-call");
-            assertThat(shifts.getRow(1).getCell(4).getNumericCellValue()).isEqualTo(168);
-            assertThat(shifts.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Level 2");
+            assertThat(shifts.getRow(1).getCell(5).getNumericCellValue()).isEqualTo(168);
+            assertThat(shifts.getRow(2).getCell(2).getStringCellValue()).isEqualTo("Level 2");
         }
     }
 

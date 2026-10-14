@@ -30,8 +30,8 @@ public interface OncallShiftRepository extends JpaRepository<OncallShift, Long>,
                                       @Param("start") LocalDateTime start,
                                       @Param("end") LocalDateTime end);
 
-    // Loads each shift's engineer in the same query instead of one query per shift
+    // Loads each shift's engineer and team in the same query instead of one query per shift
     @Override
-    @EntityGraph(attributePaths = "engineer")
+    @EntityGraph(attributePaths = {"engineer", "engineer.team"})
     Page<OncallShift> findAll(Specification<OncallShift> spec, Pageable pageable);
 }

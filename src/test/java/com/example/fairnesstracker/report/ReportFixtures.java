@@ -128,9 +128,9 @@ final class ReportFixtures {
 
     static List<OncallShiftResponse> shifts() {
         return List.of(
-                new OncallShiftResponse(1L, 3L, "Asha Rao", 1, Instant.parse("2026-10-05T18:30:00Z"),
+                new OncallShiftResponse(1L, 3L, "Asha Rao", "SRE", 1, Instant.parse("2026-10-05T18:30:00Z"),
                         Instant.parse("2026-10-12T18:30:00Z")),
-                new OncallShiftResponse(2L, 4L, "Ravi Kumar", 2, Instant.parse("2026-10-05T18:30:00Z"),
+                new OncallShiftResponse(2L, 4L, "Ravi Kumar", "SRE", 2, Instant.parse("2026-10-05T18:30:00Z"),
                         Instant.parse("2026-10-12T18:30:00Z")));
     }
 }

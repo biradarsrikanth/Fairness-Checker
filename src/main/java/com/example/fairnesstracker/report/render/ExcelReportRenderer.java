@@ -270,11 +270,11 @@ public class ExcelReportRenderer implements ReportRenderer {
     }
 
     private void shifts(SXSSFWorkbook workbook, Styles styles, Rows<OncallShiftResponse> shifts, ZoneId zone) {
-        SheetWriter sheet = new SheetWriter(workbook.createSheet("On-call"), styles, 24, 12, 18, 18, 10);
-        sheet.headings("Engineer", "Level", "Starts", "Ends", "Hours");
+        SheetWriter sheet = new SheetWriter(workbook.createSheet("On-call"), styles, 24, 18, 12, 18, 18, 10);
+        sheet.headings("Engineer", "Team", "Level", "Starts", "Ends", "Hours");
         sheet.freezeHeader();
         for (OncallShiftResponse shift : shifts.items()) {
-            sheet.row().text(shift.engineerName()).text(shift.escalationLevel() == 1 ? "Primary"
+            sheet.row().text(shift.engineerName()).text(shift.team()).text(shift.escalationLevel() == 1 ? "Primary"
                             : "Level " + shift.escalationLevel()).time(shift.startsAt(), zone).time(shift.endsAt(), zone)
                     .dec(Duration.between(shift.startsAt(), shift.endsAt()).toMinutes() / 60.0);
         }

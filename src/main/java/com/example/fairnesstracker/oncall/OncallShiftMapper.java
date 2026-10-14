@@ -10,5 +10,6 @@ public interface OncallShiftMapper {
 
     @Mapping(target = "engineerId", source = "engineer.id")
     @Mapping(target = "engineerName", source = "engineer.name")
+    @Mapping(target = "team", source = "engineer.team.name")
     OncallShiftResponse toResponse(OncallShift shift);
 }

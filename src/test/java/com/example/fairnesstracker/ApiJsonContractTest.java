@@ -175,7 +175,7 @@ class ApiJsonContractTest {
                         .param("engineerId", asha.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().json("""
-                        {"content": [{"id": %d, "engineerId": %d, "engineerName": "Asha", "escalationLevel": 1,
+                        {"content": [{"id": %d, "engineerId": %d, "engineerName": "Asha", "team": "Contract SRE", "escalationLevel": 1,
                                       "startsAt": "2026-09-01T03:30:00Z", "endsAt": "2026-09-08T03:30:00Z"}],
                          "page": 0, "size": 20, "totalElements": 1, "totalPages": 1}
                         """.formatted(shift.getId(), asha.getId()), JsonCompareMode.STRICT));
