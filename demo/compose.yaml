@@ -1,0 +1,119 @@
+# The whole app in one command, for demos, from a fresh clone of this repository: PostgreSQL with real incident
+# data, the scorer, this gateway and the web app. Nothing here touches Azure or PagerDuty, and nothing else needs
+# cloning: the scorer and the web app are built straight from their GitHub repositories. Every password and key
+# in this file is a demo value.
+#
+#   docker compose -f demo/compose.yaml up --build     first run builds the images (several minutes)
+#   open http://localhost:8088
+#
+#   Sign in as                     password
+#   admin@example.com              Demo-Admin-2026      everything, users, syncs, audit log
+#   manager@example.com            Demo-Manager-2026    teams Volvo G92 and Volvo G230 2nd (India)
+#   engineer@example.com           Demo-Engineer-2026   an engineer in Volvo G92: their own figures
+#
+#   docker compose -f demo/compose.yaml down           stop (the data stays)
+#   docker compose -f demo/compose.yaml down -v        stop and forget the data; the next start seeds afresh
+#
+# The data: on first start the seed job downloads two published incident logs (Volvo IT, BPI Challenge 2013, from
+# 4TU.ResearchData; a ServiceNow instance, from the UCI repository) and loads 21 teams, ~500 engineers and
+# ~19,000 alerts, with the dates moved so the latest incidents are from the past week. It needs internet access
+# then; the sign-ins exist once it has finished. Sources and licences: demo/import_real_data.py.
+#
+# Settings (environment variables or a demo/.env file):
+#   WEB_PORT=8088                          the port the app is published on
+#   SCORER_CONTEXT, WEB_CONTEXT            build the scorer or web app from a local checkout instead of GitHub,
+#                                          relative to this folder, e.g. WEB_CONTEXT=../../fairness-web
+#
+# API docs: http://localhost:8088/swagger-ui.html.
+# Database: docker compose -f demo/compose.yaml exec db psql -U fairness fairness
+name: fairness-demo
+
+x-demo-secrets:
+  # Shared by the gateway and the scorer; demo values only
+  scorer-api-key: &scorer-api-key demo-scorer-api-key-0123456789abcdef
+  timezone: &timezone Asia/Kolkata
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fairness
+      POSTGRES_USER: fairness
+      POSTGRES_PASSWORD: demo-db-password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Creates the scorer's read-only login on first start
+      - ./db-init.sql:/docker-entrypoint-initdb.d/10-scorer-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fairness -d fairness"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  gateway:
+    build: ..
+    image: fairness-demo/gateway
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AZURE_DB_URL: jdbc:postgresql://db:5432/fairness
+      AZURE_DB_USERNAME: fairness
+      AZURE_DB_PASSWORD: demo-db-password
+      PYTHON_SCORER_URL: http://scorer:8000
+      SCORER_API_KEY: *scorer-api-key
+      TEAM_TIMEZONE: *timezone
+      JWT_SECRET: demo-jwt-secret-not-for-production-0123456789
+      # Served over plain HTTP: a Secure cookie would be dropped when opened by address instead of localhost
+      REFRESH_COOKIE_SECURE: "false"
+      # No PagerDuty in the demo: no scheduled sync, and "Sync now" fails quickly (recorded as a failed run)
+      PAGERDUTY_SYNC_ENABLED: "false"
+      PAGERDUTY_API_TOKEN: demo-not-a-token
+      PAGERDUTY_BASE_URL: http://pagerduty.invalid
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # One-off: loads the demo data once the gateway has created the schema, then exits (seed.sh)
+  seed:
+    build: .
+    image: fairness-demo/seed
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: fairness
+      PGPASSWORD: demo-db-password
+      PGDATABASE: fairness
+    restart: "no"
+
+  scorer:
+    build: ${SCORER_CONTEXT:-https://github.com/biradarsrikanth/fairneess-scorer.git#main}
+    image: fairness-demo/scorer
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The read-only login from db-init.sql
+      AZURE_DB_URL: postgresql+psycopg://fairness_scorer:demo-scorer-password@db:5432/fairness
+      SCORER_API_KEY: *scorer-api-key
+      TEAM_TIMEZONE: *timezone
+
+  web:
+    build: ${WEB_CONTEXT:-https://github.com/biradarsrikanth/fairness-web.git#main}
+    image: fairness-demo/web
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      GATEWAY_URL: http://gateway:8080
+    ports:
+      - "${WEB_PORT:-8088}:80"
+
+volumes:
+  db-data:
