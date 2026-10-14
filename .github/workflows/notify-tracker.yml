@@ -1,0 +1,27 @@
+# Tells the owner's private fairness-tracker repository (all three apps as submodules) that main moved, so it
+# points its submodule here. Needs the TRACKER_DISPATCH_TOKEN secret: a fine-grained token limited to that
+# repository with Contents read and write. Without it the job only warns.
+name: Notify fairness-tracker
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  notify:
+    if: github.repository_owner == 'biradarsrikanth'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send app-pushed
+        env:
+          GH_TOKEN: ${{ secrets.TRACKER_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::TRACKER_DISPATCH_TOKEN isn't set, so fairness-tracker wasn't told about this push"
+            exit 0
+          fi
+          gh api repos/biradarsrikanth/fairness-tracker/dispatches \
+            -f event_type=app-pushed \
+            -f "client_payload[repo]=$GITHUB_REPOSITORY" -f "client_payload[sha]=$GITHUB_SHA"
