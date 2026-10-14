@@ -6,7 +6,7 @@ Day-to-day operation of the fairness tracker. How it's built: [ARCHITECTURE.md](
 
 | Part | Port | Healthy when | Logs |
 |---|---|---|---|
-| fairness-web (Nginx) | 80 in the container (`:4280` with its compose file, `:8088` in the demo) | `GET /healthz` answers `ok` | Nginx access log |
+| fairness-web (Nginx) | 80 in the container (`:4280` with its compose file) | `GET /healthz` answers `ok` | Nginx access log |
 | Fairness-Checker (gateway) | 8080 | `/actuator/health/readiness` is `UP` (includes the database) | JSON with `requestId` (`LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`) |
 | fairneess-scorer | 8000, private | `/health` is `ok` (includes the database); `/health/live` for liveness | JSON with `request_id` |
 | PostgreSQL | 5432 | `pg_isready` | |
@@ -15,27 +15,6 @@ Every API response carries `X-Request-ID`, and error bodies repeat it as `reques
 gateway's and the scorer's log lines for that request: search both for it when someone reports an error.
 
 ## Start and stop
-
-**Demo** (everything, with a throwaway database holding real incident data from two published logs; from a
-clone of this repository, nothing else needed):
-
-```bash
-docker compose -f demo/compose.yaml up --build -d   # http://localhost:8088, sign-ins in the file's header
-docker compose -f demo/compose.yaml ps              # seed shows "Exited (0)" once the data is in
-docker compose -f demo/compose.yaml down            # stop, keep the data
-docker compose -f demo/compose.yaml down -v         # stop and forget the data; the next start seeds afresh
-```
-
-The scorer and the web app are built from `main` on GitHub. To try local changes to them, point
-`SCORER_CONTEXT` or `WEB_CONTEXT` at a checkout (relative to `demo/`, e.g. `WEB_CONTEXT=../../fairness-web`);
-`WEB_PORT` changes the port. The seed job needs internet access on first start, to download the two logs; if it
-failed (`docker compose -f demo/compose.yaml logs seed`), run `up` again once the network is back.
-
-**Loading the real incident data into another database** (Azure, say): `python3 -I demo/import_real_data.py`
-downloads the logs and writes `demo/real-data.sql`, with the dates moved so the latest incidents are from the
-past week. Then `demo/load-real-data.sh` reads the database settings from `.env`, backs the database up, asks
-for the host name and loads that file. It only adds rows and creates no logins; a second run adds nothing.
-Neither file is committed (`demo/.gitignore`): the logs aren't ours to redistribute.
 
 **Against the real database**, each repo from its own folder, after `docker network create fairness-net` once
 per machine: start the scorer, then the gateway, then the web app (`docker compose up --build -d` in each).

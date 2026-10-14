@@ -6,17 +6,6 @@ them in PostgreSQL, and serves scores computed by the
 Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Operations: [docs/RUNBOOK.md](docs/RUNBOOK.md). The web app is
 the `fairness-web` repository.
 
-**Just want to see it?** Clone this repository and run
-
-```bash
-docker compose -f demo/compose.yaml up --build
-```
-
-It starts the whole app at <http://localhost:8088>: a throwaway database holding real incident data (two
-published logs, downloaded on first start), the scorer and the web app (built from their GitHub repositories)
-and this gateway. Nothing else needs cloning, and it doesn't touch Azure or PagerDuty. The sign-ins are in the
-header of [demo/compose.yaml](demo/compose.yaml).
-
 ## Run with Docker
 
 ```bash

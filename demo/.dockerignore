@@ -1,6 +1,0 @@
-datasets
-real-data.sql
-compose.yaml
-load-real-data.sh
-db-init.sh
-secrets.sh

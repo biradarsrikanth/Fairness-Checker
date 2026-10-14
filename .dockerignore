@@ -15,5 +15,4 @@ Dockerfile
 .dockerignore
 docs
 ops
-demo
 docker-compose.yml

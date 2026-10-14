@@ -319,9 +319,8 @@ never reach a controller.
 - **CI:** the gateway and the scorer each run their own workflow on pull requests and pushes to `main`. Java:
   `mvn verify`, including a Testcontainers test that applies every Flyway migration to a real PostgreSQL and
   validates the JPA mapping, then an image build. Python: ruff, mypy, unit tests and integration tests against
-  a PostgreSQL service container, then an image build. The web app has no workflow yet (it has no GitHub
-  repository yet); locally it runs lint, Vitest unit tests, the production build and a Playwright end-to-end
-  test against the demo stack.
+  a PostgreSQL service container, then an image build. The web app has no workflow; locally it runs lint,
+  Vitest unit tests, the production build and a Playwright end-to-end test against a running stack.
 - **CD:** switched off for now, so merges don't deploy anything. To bring back the Azure deploy, restore
   `.github/workflows/main_fairness-tracker.yml` from git history (commit `7a7316f^`); Flyway then runs pending
   migrations when the deployed app starts.
@@ -330,14 +329,6 @@ never reach a controller.
   reaches the scorer at `http://scorer:8000` and the web app's Nginx reaches the gateway at
   `http://gateway:8080`. None of them runs a database: the gateway and the scorer connect to the existing
   PostgreSQL from their `.env`. The scorer port is bound to `127.0.0.1` only; the web app is on `:4280`.
-- **Demo (Docker):** `demo/compose.yaml` in this repository builds the gateway from the checkout and the scorer
-  and web app from their GitHub repositories, and adds a throwaway PostgreSQL (loaded once by a one-off `seed`
-  service after the gateway has migrated the schema; it downloads the logs below and converts them on the
-  spot) on `http://localhost:8088`. Its data is real: two published incident logs, Volvo IT (BPI Challenge
-  2013, 4TU.ResearchData) and a ServiceNow instance (UCI, CC BY 4.0), turned into this schema by
-  `demo/import_real_data.py`: the 21 teams with at least 10 people, 496 engineers, about 19,000 alerts and their
-  hand-overs as paging history, moved in whole weeks so the latest are recent. Neither log has on-call shifts. It never touches Azure or PagerDuty; its
-  passwords and keys are demo values written in the file.
 - **Operations:** [RUNBOOK.md](RUNBOOK.md) covers starting, checking, migrating, rotating secrets and the usual
   failures.
 
@@ -372,7 +363,7 @@ New settings introduced with this architecture (existing database and PagerDuty 
 | `LOG_FORMAT` / `LOG_LEVEL` | scorer | no | `text` (`json` in Docker) / `INFO` | Logging |
 | `GATEWAY_URL` | web (Nginx) | no | `http://gateway:8080` | Where Nginx passes `/api`, `/v3/api-docs` and `/swagger-ui` |
 | `TRUSTED_PROXY` | web (Nginx) | no | `127.0.0.1/32` (none) | Address or CIDR of the load balancer in front, whose `X-Forwarded-For` names the client |
-| `E2E_BASE_URL` / `E2E_EMAIL` / `E2E_PASSWORD` | web (Playwright) | no | the demo stack and its manager | What the end-to-end test signs in to |
+| `E2E_BASE_URL` / `E2E_EMAIL` / `E2E_PASSWORD` | web (Playwright) | no | `http://localhost:8088` and a manager | What the end-to-end test signs in to |
 
 ## Known limitations
 
