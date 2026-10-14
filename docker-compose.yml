@@ -1,11 +1,12 @@
 # Runs the gateway on its own. The database (Azure PostgreSQL) is external: this file only connects to it,
 # using AZURE_DB_* from .env (see .env.example).
 #
-#   docker network create fairness-net   # once per machine, shared with fairneess-scorer
+#   docker network create fairness-net   # once per machine, shared with fairneess-scorer and fairness-web
 #   docker compose up --build
 #
-# The scorer is a separate repo. Start it with its own compose file on the same network and this service
-# reaches it at http://scorer:8000; without it, score endpoints answer 503 and everything else works.
+# The scorer and the web app are separate repos, each with its own compose file on the same network. This
+# service reaches the scorer at http://scorer:8000 (without it, score endpoints answer 503 and everything else
+# works), and the web app's Nginx reaches this service as http://gateway:8080.
 name: fairness-checker
 
 services:
@@ -27,7 +28,10 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - fairness-net
+      fairness-net:
+        # The web app's Nginx (fairness-web repo) proxies /api to http://gateway:8080
+        aliases:
+          - gateway
     restart: unless-stopped
 
 networks:
